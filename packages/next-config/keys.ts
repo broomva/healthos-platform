@@ -22,6 +22,7 @@ export const keys = () =>
       NEXT_PUBLIC_API_URL: z.url().optional(),
       NEXT_PUBLIC_DOCS_URL: z.url().optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       ANALYZE: process.env.ANALYZE,
       NEXT_RUNTIME: process.env.NEXT_RUNTIME,

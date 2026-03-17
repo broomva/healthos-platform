@@ -8,6 +8,7 @@ export const keys = () =>
         .union([z.string().startsWith("sk_"), z.string().startsWith("testsk_")])
         .optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       SVIX_TOKEN: process.env.SVIX_TOKEN,
     },

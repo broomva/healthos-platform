@@ -6,6 +6,7 @@ export const keys = () =>
     server: {
       LIVEBLOCKS_SECRET: z.string().startsWith("sk_").optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       LIVEBLOCKS_SECRET: process.env.LIVEBLOCKS_SECRET,
     },

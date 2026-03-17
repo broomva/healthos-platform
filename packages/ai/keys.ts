@@ -6,6 +6,7 @@ export const keys = () =>
     server: {
       OPENAI_API_KEY: z.string().startsWith("sk-").optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     },

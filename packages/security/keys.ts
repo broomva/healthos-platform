@@ -6,6 +6,7 @@ export const keys = () =>
     server: {
       ARCJET_KEY: z.string().startsWith("ajkey_").optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       ARCJET_KEY: process.env.ARCJET_KEY,
     },

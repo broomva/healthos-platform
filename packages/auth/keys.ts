@@ -23,6 +23,7 @@ export const keys = () =>
         .startsWith("/")
         .optional(),
     },
+    emptyStringAsUndefined: true,
     runtimeEnv: {
       CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
       CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
