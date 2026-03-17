@@ -1,31 +1,52 @@
 import "server-only";
 
-import { neonConfig } from "@neondatabase/serverless";
-import { PrismaNeon } from "@prisma/adapter-neon";
-import ws from "ws";
-import { PrismaClient } from "./generated/client";
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
 import { keys } from "./keys";
+// biome-ignore lint/performance/noNamespaceImport: Drizzle requires namespace import for schema
+import * as schema from "./schema";
 
-const globalForPrisma = global as unknown as { prisma: PrismaClient };
+const globalForDrizzle = global as unknown as {
+  db: ReturnType<typeof createDrizzleClient>;
+};
 
-const databaseUrl = keys().DATABASE_URL;
+function createDrizzleClient() {
+  const databaseUrl = keys().DATABASE_URL;
 
-function createPrismaClient(): PrismaClient {
   if (!databaseUrl) {
     throw new Error(
       "DATABASE_URL is not set. Please add it to your .env.local file."
     );
   }
 
-  neonConfig.webSocketConstructor = ws;
-  const adapter = new PrismaNeon({ connectionString: databaseUrl });
-  return new PrismaClient({ adapter });
+  const client = postgres(databaseUrl);
+  return drizzle(client, { schema });
 }
 
-export const database = globalForPrisma.prisma || createPrismaClient();
+export const database = globalForDrizzle.db || createDrizzleClient();
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = database;
+  globalForDrizzle.db = database;
 }
 
-export * from "./generated/client";
+export {
+  and,
+  asc,
+  count,
+  desc,
+  eq,
+  gt,
+  gte,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  like,
+  lt,
+  lte,
+  ne,
+  notInArray,
+  or,
+  sql,
+} from "drizzle-orm";
+export * from "./schema";
