@@ -1,57 +1,138 @@
-# Symphony Cloud
+# symphony-forge
 
-Managed service platform for [Symphony](https://github.com/broomva/symphony) — the open-source coding agent orchestrator.
+Scaffold [next-forge](https://github.com/vercel/next-forge) projects with a composable **control metalayer** for AI agent governance.
 
-## Architecture
+[![npm version](https://img.shields.io/npm/v/symphony-forge.svg)](https://www.npmjs.com/package/symphony-forge)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![skills.sh](https://img.shields.io/badge/skills.sh-symphony--forge-purple)](https://skills.sh)
 
-```
-symphony-cloud/
-├── apps/
-│   ├── web/          → Marketing site (Next.js)
-│   ├── app/          → Dashboard (Next.js + Clerk + Stripe)
-│   ├── api/          → Control plane API (Next.js API routes)
-│   └── desktop/      → Tauri desktop app (future)
-├── packages/
-│   ├── ui/           → Shared design system (shadcn/ui + Tailwind)
-│   ├── db/           → Database schema (Drizzle/Prisma)
-│   ├── symphony-client/ → TypeScript SDK for Symphony HTTP API
-│   ├── auth/         → Clerk auth helpers
-│   ├── billing/      → Stripe integration
-│   └── analytics/    → Usage metering
-└── infra/            → Terraform + K8s configs
-```
+## What is this?
 
-## Relationship to Symphony (open source)
+symphony-forge extends next-forge with 5 composable layers that make your project autonomous-agent-ready:
 
-| Layer | Repo | License |
-|-------|------|---------|
-| Orchestration engine | [symphony](https://github.com/broomva/symphony) | Apache 2.0 |
-| CLI + basic dashboard | [symphony](https://github.com/broomva/symphony) | Apache 2.0 |
-| Managed platform | symphony-cloud (this repo) | Proprietary |
+| Layer | What it generates | Purpose |
+|-------|------------------|---------|
+| **control** | `.control/{policy,commands,topology}.yaml` | Governance gates, command registry, repo topology |
+| **harness** | `scripts/harness/*.sh`, `Makefile.control`, CI workflow | Build automation, git hooks, CI/CD |
+| **knowledge** | `docs/` skeleton (index, glossary, ADRs, runbooks, templates) | Obsidian knowledge graph |
+| **consciousness** | `CLAUDE.md`, `AGENTS.md` | AI agent instructions (metalayer-aware) |
+| **autoany** | `.control/egri.yaml` | EGRI self-improvement loop config |
 
-## Getting Started
+## Quick Start
+
+### New project (next-forge + all layers)
 
 ```bash
-# Prerequisites: Node.js 20+, Bun
+npx symphony-forge init my-project
+```
+
+### Add layers to an existing project
+
+```bash
+npx symphony-forge layer all          # All 5 layers
+npx symphony-forge layer control      # Just governance
+npx symphony-forge layer consciousness # Just agent instructions
+```
+
+### Run entropy audit
+
+```bash
+npx symphony-forge audit
+```
+
+## Install as a skill
+
+```bash
+npx skills add broomva/symphony-forge@symphony-forge
+```
+
+## CLI Commands
+
+```
+symphony-forge init <name>              # next-forge clone + metalayer
+symphony-forge init <name> --no-layers  # Pure next-forge (no metalayer)
+symphony-forge init <name> --layers control,harness  # Specific layers
+symphony-forge layer <name>             # Add single layer to existing project
+symphony-forge layer all                # Add all layers
+symphony-forge audit                    # Entropy audit (topology, docs, wikilinks)
+symphony-forge update                   # Update from upstream next-forge
+```
+
+## The Control Metalayer Pattern
+
+The metalayer maps to control theory:
+
+- **Sensors** — Policy gates detect high-risk changes
+- **Actuators** — Harness scripts enforce standards
+- **Model** — Knowledge graph is the system's self-description
+- **Controller** — Agent instructions (CLAUDE.md/AGENTS.md) close the loop
+- **Feedback** — EGRI cycle + audit measure and reduce entropy
+
+## How Layers Work
+
+Layers are **composable** — each works independently but adjusts content based on what else is installed. Installing `consciousness` alone generates CLAUDE.md with callout warnings for missing layers:
+
+```
+> [!warning]
+> The `control` layer is not installed. Run `npx symphony-forge layer control` to add governance gates.
+```
+
+A `.symphony-forge.json` manifest tracks installed layers and package manager.
+
+## Package Manager Support
+
+All generated scripts are parameterized for your package manager:
+
+```bash
+npx symphony-forge init my-project --package-manager pnpm
+```
+
+Supports: `bun` (default), `npm`, `yarn`, `pnpm`.
+
+## Generated File Tree (all layers)
+
+```
+.control/
+  policy.yaml           # Risk gates (6 policies)
+  commands.yaml         # Command registry (8 commands)
+  topology.yaml         # Repo map (apps + packages)
+  egri.yaml             # EGRI self-improvement loop
+scripts/harness/
+  smoke.sh              # Quick validation (~120s)
+  check.sh              # Lint + typecheck (~60s)
+  ci.sh                 # Full pipeline (~600s)
+  check-policy.sh       # Advisory policy warnings
+  check-docs-freshness.sh
+  check-wikilinks.sh
+  audit.sh              # Entropy audit
+  install-hooks.sh      # Git hook installer
+  pre-commit.sh         # Fast pre-commit hook
+docs/
+  _index.md             # Knowledge graph entry point
+  glossary.md           # Terminology
+  architecture/overview.md
+  decisions/adr-001-metalayer.md
+  runbooks/local-dev-setup.md
+  _templates/           # 5 doc templates
+.github/workflows/ci.yml
+Makefile.control
+CLAUDE.md
+AGENTS.md
+.symphony-forge.json
+```
+
+## Development
+
+```bash
 bun install
-bun dev        # Start all apps in dev mode
+npx tsup                # Build CLI
+node dist/index.js --help
 ```
 
-## Stack
+## Contributing
 
-- **Framework**: Next.js 15 (App Router)
-- **Monorepo**: Turborepo
-- **Auth**: Clerk
-- **Payments**: Stripe
-- **Database**: PostgreSQL (Neon) + Drizzle ORM
-- **UI**: shadcn/ui + Tailwind CSS v4
-- **Observability**: Sentry
-- **Deployment**: Vercel (web/app/api) + Railway/Fly (Symphony instances)
+See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup and guidelines.
 
-## Scaffold
+## License
 
-This repo will be initialized with [next-forge](https://github.com/vercel/next-forge).
-
-```bash
-npx next-forge init symphony-cloud
-```
+[Apache 2.0](LICENSE)

@@ -1,15 +1,29 @@
 {
-  "name": "symphony-cloud",
+  "name": "symphony-forge",
   "version": "0.1.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/broomva/symphony-cloud.git"
+    "url": "git+https://github.com/broomva/symphony-forge.git"
   },
+  "license": "Apache-2.0",
+  "description": "Scaffold next-forge projects with a composable control metalayer for AI agent governance",
+  "keywords": [
+    "next-forge",
+    "nextjs",
+    "turborepo",
+    "scaffold",
+    "cli",
+    "metalayer",
+    "ai-agent",
+    "governance",
+    "skills"
+  ],
   "publishConfig": {
     "provenance": true,
     "access": "public"
   },
   "bin": {
+    "symphony-forge": "dist/index.js",
     "next-forge": "dist/index.js"
   },
   "files": [
