@@ -1,34 +1,13 @@
 {
-  "name": "symphony-forge",
+  "name": "healthos-platform",
   "version": "0.1.0",
+  "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/broomva/symphony-forge.git"
+    "url": "git+https://github.com/broomva/healthOS.git"
   },
   "license": "Apache-2.0",
-  "description": "Scaffold next-forge projects with a composable control metalayer for AI agent governance",
-  "keywords": [
-    "next-forge",
-    "nextjs",
-    "turborepo",
-    "scaffold",
-    "cli",
-    "metalayer",
-    "ai-agent",
-    "governance",
-    "skills"
-  ],
-  "publishConfig": {
-    "provenance": true,
-    "access": "public"
-  },
-  "bin": {
-    "symphony-forge": "dist/index.js",
-    "next-forge": "dist/index.js"
-  },
-  "files": [
-    "dist/index.js"
-  ],
+  "description": "AI-powered health intelligence platform — turborepo monorepo with chat, health dashboard, and agent orchestration",
   "scripts": {
     "build": "turbo build",
     "dev": "turbo dev",
@@ -41,9 +20,11 @@
     "boundaries": "turbo boundaries",
     "bump-deps": "bunx npm-check-updates --deep -u && bun install",
     "bump-ui": "bunx shadcn@latest add --all --overwrite -c packages/design-system",
-    "migrate": "cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma migrate dev",
-    "migrate:deploy": "cd packages/database && bunx prisma generate && bunx prisma migrate deploy",
-    "db:push": "cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma db push",
+    "migrate": "cd packages/database && bunx drizzle-kit migrate",
+    "migrate:deploy": "cd packages/database && bunx drizzle-kit migrate",
+    "db:push": "cd packages/database && bunx drizzle-kit push",
+    "db:generate": "cd packages/database && bunx drizzle-kit generate",
+    "db:studio": "cd packages/database && bunx drizzle-kit studio",
     "clean": "git clean -xdf node_modules",
     "release": "npm publish",
     "prepare": "[ -n \"$CI\" ] || [ -n \"$VERCEL\" ] || scripts/harness/install-hooks.sh"
