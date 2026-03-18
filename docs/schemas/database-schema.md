@@ -9,290 +9,318 @@ tags:
   - phase/1
   - status/active
   - type/schema
+last_validated: "2026-03-18"
 ---
 
 # Database Schema
 
 > [!context]
-> This documents the Prisma schema for Symphony Cloud, defined in `packages/database/prisma/schema.prisma`. The database is Neon PostgreSQL, accessed via the `@prisma/adapter-neon` WebSocket adapter.
+> This documents the Drizzle ORM schema for healthOS Platform, defined in `packages/database/schema.ts`. The database is Neon PostgreSQL, accessed via `drizzle-orm/postgres-js` with the `postgres` driver.
+>
+> **Important**: The ORM is Drizzle (NOT Prisma). The database connection uses `postgres` (not `@prisma/adapter-neon`).
 
 ## Schema Configuration
 
-```prisma
-generator client {
-  provider = "prisma-client"
-  output   = "../generated"
-}
+```typescript
+// packages/database/drizzle.config.ts
+import { defineConfig } from "drizzle-kit";
 
-datasource db {
-  provider     = "postgresql"
-  relationMode = "prisma"
-}
+export default defineConfig({
+  dialect: "postgresql",
+  schema: "./schema.ts",
+  out: "./migrations",
+  dbCredentials: {
+    url: process.env.DATABASE_URL ?? "",
+  },
+});
+```
+
+## Database Connection
+
+```typescript
+// packages/database/index.ts
+import { drizzle } from "drizzle-orm/postgres-js";
+import postgres from "postgres";
+import * as schema from "./schema";
+
+const client = postgres(databaseUrl);
+export const database = drizzle(client, { schema });
 ```
 
 > [!important]
-> `relationMode = "prisma"` means foreign key constraints are enforced at the application level, not the database level. Referential integrity depends on correct application logic.
+> The `@repo/database` package imports `server-only`, preventing accidental client-side imports that would expose the database connection string.
 
-## Current Schema (Stub)
+## Current Schema (16 tables)
 
-The current schema has a single stub model:
-
-```prisma
-model Page {
-  id   Int    @id @default(autoincrement())
-  name String
-}
-```
-
-> [!warning]
-> This is the next-forge template stub. It will be replaced with the full Symphony Cloud schema in Phase 2.
-
-## Planned Schema (Phase 2)
+Validated against `packages/database/schema.ts` on 2026-03-18.
 
 ### Entity Relationship Diagram
 
 ```mermaid
 erDiagram
-    SymphonyInstance ||--o{ Run : "has"
-    SymphonyInstance ||--o{ WorkflowDeployment : "receives"
-    Workflow ||--o{ WorkflowVersion : "has"
-    Workflow ||--o{ WorkflowDeployment : "deployed via"
-    Run ||--o{ Session : "contains"
-    OrganizationSettings ||--|| Organization : "configures"
-
-    SymphonyInstance {
-        string id PK
-        string organizationId
-        string name
-        string host
-        int port
-        string apiToken
-        enum status
-    }
-
-    Workflow {
-        string id PK
-        string organizationId
-        string name
-        string content
-        int version
-        boolean isActive
-    }
-
-    WorkflowVersion {
-        string id PK
-        string workflowId FK
-        int version
-        string content
-        string changeNote
-    }
-
-    WorkflowDeployment {
-        string id PK
-        string workflowId FK
-        string instanceId FK
-        int version
-        boolean success
-    }
-
-    Run {
-        string id PK
-        string organizationId
-        string instanceId FK
-        string issueId
-        enum status
-        bigint tokens
-    }
-
-    Session {
-        string id PK
-        string runId FK
-        string sessionId
-        int turnCount
-        bigint tokens
-        enum status
-    }
-
-    ApiKey {
-        string id PK
-        string organizationId
-        enum service
-        string encryptedKey
-    }
-
-    UsageRecord {
-        string id PK
-        string organizationId
-        datetime periodStart
-        datetime periodEnd
-        bigint tokens
-        int agentSeconds
-    }
-
-    AuditLog {
-        string id PK
-        string organizationId
-        string userId
-        enum action
-        string resourceType
-        string resourceId
-    }
-
-    OrganizationSettings {
-        string id PK
-        string organizationId UK
-        enum billingPlan
-        string stripeCustomerId
-        json limits
-    }
+    user ||--o{ session : "has"
+    user ||--o{ account : "has"
+    user ||--o{ chat : "owns"
+    user ||--o{ document : "creates"
+    user ||--o{ suggestion : "creates"
+    user ||--o{ project : "owns"
+    user ||--|| userCredit : "has"
+    user ||--o{ userPreference : "has"
+    user ||--o{ healthBaseline : "has"
+    user ||--|| subscription : "has"
+    user ||--o{ conversationMemory : "has"
+    user ||--o{ team : "owns"
+    user ||--o{ teamMember : "member of"
+    chat ||--o{ message : "contains"
+    chat ||--o{ vote : "receives"
+    chat ||--o{ stream : "has"
+    chat ||--o{ conversationMemory : "linked to"
+    team ||--o{ teamMember : "has"
 ```
 
-### Models
+### Auth Tables (Better Auth)
 
-#### SymphonyInstance
+#### user
 
-Tracks Symphony engine instances registered by each organization.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | varchar(36) | PK | Better Auth user ID |
+| `name` | text | NOT NULL | Display name |
+| `email` | text | NOT NULL, UNIQUE | Email address |
+| `email_verified` | boolean | NOT NULL, default false | Email verification status |
+| `image` | text | nullable | Profile image URL |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Clerk organization ID (tenant) |
-| `name` | String | | Human-readable instance name |
-| `host` | String | | Engine hostname/IP |
-| `port` | Int | | Engine port |
-| `apiToken` | String? | | Encrypted bearer token |
-| `status` | InstanceStatus | | `provisioning`, `running`, `stopped`, `error` |
-| `createdAt` | DateTime | `@default(now())` | |
-| `updatedAt` | DateTime | `@updatedAt` | |
-| `deletedAt` | DateTime? | | Soft delete timestamp |
+#### session
 
-#### Workflow
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | varchar(36) | PK | Session ID |
+| `expires_at` | timestamp | NOT NULL | Session expiry |
+| `token` | text | NOT NULL, UNIQUE | Session token |
+| `ip_address` | text | nullable | Client IP |
+| `user_agent` | text | nullable | Client user agent |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-Stores WORKFLOW.md documents that define agent behavior.
+#### account
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Tenant scope |
-| `name` | String | | Workflow name |
-| `content` | String | | WORKFLOW.md content |
-| `version` | Int | `@default(1)` | Current version number |
-| `isActive` | Boolean | `@default(true)` | Whether actively deployed |
-| `createdAt` | DateTime | `@default(now())` | |
-| `updatedAt` | DateTime | `@updatedAt` | |
-| `deletedAt` | DateTime? | | Soft delete |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | varchar(36) | PK | Account ID |
+| `account_id` | text | NOT NULL | Provider account ID |
+| `provider_id` | text | NOT NULL | OAuth provider (google, github) |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `access_token` | text | nullable | OAuth access token |
+| `refresh_token` | text | nullable | OAuth refresh token |
+| `id_token` | text | nullable | OAuth ID token |
+| `access_token_expires_at` | timestamp | nullable | Token expiry |
+| `refresh_token_expires_at` | timestamp | nullable | Refresh token expiry |
+| `scope` | text | nullable | OAuth scopes |
+| `password` | text | nullable | Password hash (if using credentials) |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-#### Run
+#### verification
 
-Tracks individual agent execution runs.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | varchar(36) | PK | Verification ID |
+| `identifier` | text | NOT NULL | What is being verified |
+| `value` | text | NOT NULL | Verification value |
+| `expires_at` | timestamp | NOT NULL | Expiry |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Tenant scope |
-| `instanceId` | String | | Which engine ran this |
-| `issueId` | String | | Issue/task identifier |
-| `status` | RunStatus | | `queued`, `running`, `completed`, `failed`, `cancelled` |
-| `tokens` | BigInt | `@default(0)` | Total tokens consumed |
-| `startedAt` | DateTime? | | When execution began |
-| `completedAt` | DateTime? | | When execution finished |
-| `createdAt` | DateTime | `@default(now())` | |
-| `updatedAt` | DateTime | `@updatedAt` | |
+### Chat Tables
 
-#### Session
+#### chat
 
-Turn-level tracking within a run.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Chat ID |
+| `title` | text | NOT NULL | Chat title |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `visibility` | varchar(20) | NOT NULL, default "private" | "private" or "public" |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `runId` | String | `@@index` | Parent run |
-| `sessionId` | String | | Engine session identifier |
-| `turnCount` | Int | `@default(0)` | Number of turns |
-| `tokens` | BigInt | `@default(0)` | Tokens for this session |
-| `status` | SessionStatus | | `active`, `completed`, `failed` |
-| `createdAt` | DateTime | `@default(now())` | |
-| `updatedAt` | DateTime | `@updatedAt` | |
+#### message
 
-#### ApiKey
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Message ID |
+| `chat_id` | uuid | FK -> chat, cascade | Parent chat |
+| `role` | varchar(20) | NOT NULL | "user", "assistant", "system", "tool" |
+| `parts` | json | NOT NULL | Message content parts (AI SDK format) |
+| `attachments` | json | nullable | File attachments |
+| `created_at` | timestamp | NOT NULL, default now() | |
 
-Encrypted storage for external service API keys.
+#### vote
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Tenant scope |
-| `service` | ApiKeyService | | `openai`, `anthropic`, `github`, `custom` |
-| `encryptedKey` | String | | Encrypted key value |
-| `createdAt` | DateTime | `@default(now())` | |
-| `deletedAt` | DateTime? | | Soft delete |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `chat_id` | uuid | FK -> chat, cascade | Chat reference |
+| `message_id` | uuid | FK -> message, cascade | Message reference |
+| `is_upvoted` | boolean | NOT NULL | Upvote or downvote |
 
-#### UsageRecord
+#### document
 
-Billing period usage aggregation.
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | NOT NULL | Document ID (not auto-generated) |
+| `title` | text | NOT NULL | Document title |
+| `content` | text | nullable | Document content |
+| `kind` | varchar(20) | NOT NULL, default "text" | Document type |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `created_at` | timestamp | NOT NULL, default now() | |
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Tenant scope |
-| `periodStart` | DateTime | | Billing period start |
-| `periodEnd` | DateTime | | Billing period end |
-| `tokens` | BigInt | `@default(0)` | Total tokens |
-| `agentSeconds` | Int | `@default(0)` | Total agent runtime |
-| `createdAt` | DateTime | `@default(now())` | |
+#### suggestion
 
-#### AuditLog
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Suggestion ID |
+| `document_id` | uuid | NOT NULL | Target document |
+| `document_created_at` | timestamp | NOT NULL | Document version timestamp |
+| `original_text` | text | NOT NULL | Text to replace |
+| `suggested_text` | text | NOT NULL | Replacement text |
+| `description` | text | nullable | Why the suggestion was made |
+| `is_resolved` | boolean | NOT NULL, default false | Resolution status |
+| `user_id` | varchar(36) | FK -> user, cascade | Suggesting user |
+| `created_at` | timestamp | NOT NULL, default now() | |
 
-Tracks who did what in the system.
+#### stream
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@@index` | Tenant scope |
-| `userId` | String | | Clerk user ID |
-| `action` | AuditAction | | Action type |
-| `resourceType` | String | | e.g., "instance", "workflow" |
-| `resourceId` | String | | Resource being acted on |
-| `metadata` | Json? | | Additional context |
-| `createdAt` | DateTime | `@default(now())` | |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Stream ID |
+| `chat_id` | uuid | FK -> chat, cascade | Parent chat |
+| `created_at` | timestamp | NOT NULL, default now() | |
 
-#### OrganizationSettings
+### Project & Credits Tables
 
-Per-tenant configuration and billing info.
+#### project
 
-| Field | Type | Constraints | Description |
-|-------|------|-------------|-------------|
-| `id` | String | `@id @default(cuid())` | Primary key |
-| `organizationId` | String | `@unique` | One settings record per org |
-| `billingPlan` | BillingPlan | `@default(free)` | Subscription tier |
-| `stripeCustomerId` | String? | | Stripe customer reference |
-| `limits` | Json | | `{ maxInstances, maxTokensPerMonth, maxConcurrentAgents }` |
-| `createdAt` | DateTime | `@default(now())` | |
-| `updatedAt` | DateTime | `@updatedAt` | |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Project ID |
+| `name` | text | NOT NULL | Project name |
+| `description` | text | nullable | Project description |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
 
-### Enums
+#### user_credit
 
-| Enum | Values |
-|------|--------|
-| `InstanceStatus` | `provisioning`, `running`, `stopped`, `error` |
-| `RunStatus` | `queued`, `running`, `completed`, `failed`, `cancelled` |
-| `SessionStatus` | `active`, `completed`, `failed` |
-| `ApiKeyService` | `openai`, `anthropic`, `github`, `custom` |
-| `AuditAction` | `create`, `update`, `delete`, `deploy`, `start`, `stop` |
-| `BillingPlan` | `free`, `pro`, `enterprise` |
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Credit record ID |
+| `user_id` | varchar(36) | FK -> user, cascade, UNIQUE | One per user |
+| `credits` | integer | NOT NULL, default 100 | Credit balance |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
+
+### Agent Memory Tables
+
+#### user_preference
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Preference ID |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `key` | varchar(100) | NOT NULL | Preference key |
+| `value` | text | NOT NULL | Preference value |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
+
+#### health_baseline
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Baseline ID |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `metric` | varchar(50) | NOT NULL | Metric name (e.g., "resting_hr") |
+| `mean` | text | NOT NULL | Mean value |
+| `stddev` | text | nullable | Standard deviation |
+| `sample_size` | integer | NOT NULL, default 0 | Number of samples |
+| `last_updated` | timestamp | NOT NULL, default now() | Last recalculation |
+| `created_at` | timestamp | NOT NULL, default now() | |
+
+#### conversation_memory
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Memory ID |
+| `user_id` | varchar(36) | FK -> user, cascade | Owning user |
+| `chat_id` | uuid | FK -> chat, set null | Source chat (nullable) |
+| `fact` | text | NOT NULL | Remembered fact |
+| `category` | varchar(50) | NOT NULL | Fact category |
+| `confidence` | text | nullable | Confidence level |
+| `expires_at` | timestamp | nullable | When fact expires |
+| `created_at` | timestamp | NOT NULL, default now() | |
+
+### Subscription Tables
+
+#### subscription
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Subscription ID |
+| `user_id` | varchar(36) | FK -> user, cascade, UNIQUE | One per user |
+| `plan` | varchar(20) | NOT NULL, default "free" | Plan tier |
+| `stripe_customer_id` | text | nullable | Stripe customer reference |
+| `stripe_subscription_id` | text | nullable | Stripe subscription reference |
+| `status` | varchar(20) | NOT NULL, default "active" | Subscription status |
+| `current_period_end` | timestamp | nullable | Current billing period end |
+| `created_at` | timestamp | NOT NULL, default now() | |
+| `updated_at` | timestamp | NOT NULL, default now() | |
+
+### Team & Sharing Tables
+
+#### team
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Team ID |
+| `name` | text | NOT NULL | Team name |
+| `owner_id` | varchar(36) | FK -> user, cascade | Team owner |
+| `created_at` | timestamp | NOT NULL, default now() | |
+
+#### team_member
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Membership ID |
+| `team_id` | uuid | FK -> team, cascade | Team reference |
+| `user_id` | varchar(36) | FK -> user, cascade | Member user |
+| `role` | varchar(20) | NOT NULL, default "athlete" | Member role |
+| `created_at` | timestamp | NOT NULL, default now() | |
+
+#### document_share
+
+| Column | Type | Constraints | Description |
+|--------|------|-------------|-------------|
+| `id` | uuid | PK, default random | Share ID |
+| `document_id` | uuid | NOT NULL | Shared document |
+| `shared_by` | varchar(36) | FK -> user | Sharing user |
+| `shared_with` | varchar(36) | FK -> user, nullable | Recipient (null = public link) |
+| `share_token` | text | UNIQUE, nullable | Public share token |
+| `permission` | varchar(20) | NOT NULL, default "view" | Permission level |
+| `created_at` | timestamp | NOT NULL, default now() | |
 
 ## Design Conventions
 
-- **IDs**: `@id @default(cuid())` for all primary keys
-- **Tokens**: `BigInt` type to handle large token counts without overflow
-- **Soft deletes**: `deletedAt DateTime?` on models that support deletion
-- **Tenant scoping**: `@@index([organizationId])` on every tenant-scoped table
-- **Table naming**: `@@map("snake_case")` for PostgreSQL table names
-- **No user table**: User data lives in Clerk, referenced by string user IDs
+- **IDs**: `uuid("id").primaryKey().defaultRandom()` for most tables; `varchar(36)` for auth tables (Better Auth format)
+- **Foreign keys**: Defined inline with `.references(() => table.id, { onDelete: "cascade" })` -- enforced at database level
+- **Timestamps**: `timestamp("created_at").notNull().defaultNow()`
+- **Table naming**: Snake_case PostgreSQL names (e.g., `"user_preference"`, `"health_baseline"`)
+- **Schema location**: Single file `packages/database/schema.ts`
+- **User table**: Lives in the database (managed by Better Auth), NOT in an external service
 
 ## Related
 
-- [[decisions/adr-003-prisma-neon]] -- Why Prisma + Neon
-- [[runbooks/database-migration]] -- Migration workflow
+- [[runbooks/database-migration]] -- Migration workflow (Drizzle)
+- [[runbooks/local-dev-setup]] -- Development environment setup
 - [[architecture/data-flow]] -- Database access patterns
-- [[api-contracts/control-plane-api]] -- API that reads/writes this schema

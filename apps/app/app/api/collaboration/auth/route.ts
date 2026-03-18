@@ -1,4 +1,3 @@
-import { auth, currentUser } from "@repo/auth/server";
 import { authenticate } from "@repo/collaboration/auth";
 
 const COLORS = [
@@ -21,21 +20,13 @@ const COLORS = [
   "var(--color-rose-500)",
 ];
 
-export const POST = async () => {
-  const user = await currentUser();
-  const { orgId } = await auth();
-
-  if (!(user && orgId)) {
-    return new Response("Unauthorized", { status: 401 });
-  }
-
+// TODO: integrate with Better Auth session
+export const POST = () => {
   return authenticate({
-    userId: user.id,
-    orgId,
+    userId: "anonymous",
+    orgId: "default",
     userInfo: {
-      name:
-        user.fullName ?? user.emailAddresses.at(0)?.emailAddress ?? undefined,
-      avatar: user.imageUrl ?? undefined,
+      name: "Anonymous",
       color: COLORS[Math.floor(Math.random() * COLORS.length)],
     },
   });

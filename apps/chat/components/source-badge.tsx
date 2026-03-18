@@ -1,4 +1,4 @@
-import Link from "next/link";
+// External URLs use <a> instead of Next.js Link to avoid RouteImpl type constraints
 import { Badge } from "@/components/ui/badge";
 import {
   Tooltip,
@@ -13,7 +13,7 @@ export function WebSourceBadge({ result }: { result: SearchResultItem }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link
+        <a
           href={result.url}
           rel="noopener noreferrer"
           target="_blank"
@@ -28,7 +28,7 @@ export function WebSourceBadge({ result }: { result: SearchResultItem }) {
               {result.title}
             </span>
           </Badge>
-        </Link>
+        </a>
       </TooltipTrigger>
       <TooltipContent className="max-w-xs space-y-1 p-3" variant="base">
         <div className="flex items-center gap-2">

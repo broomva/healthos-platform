@@ -9,19 +9,22 @@ tags:
   - phase/1
   - status/active
   - type/architecture
+last_validated: "2026-03-18"
 ---
 
 # System Architecture Overview
 
 > [!context]
-> Symphony Cloud is the managed SaaS layer on top of Symphony, the open-source Rust coding agent orchestrator. This document describes the high-level architecture, including all apps, packages, and external service integrations.
+> healthOS is an AI-powered health intelligence platform built as a next-forge turborepo monorepo. It combines a general-purpose AI chat system (chat-js) with health-specific intelligence (Garmin integration, biometric analysis, training optimization).
+>
+> Last validated: 2026-03-18 via local dev session with all apps verified.
 
 ## Architecture Diagram
 
 ```mermaid
 graph TB
     subgraph External Services
-        CLERK["Clerk<br/>(Auth)"]
+        BETTER_AUTH["Better Auth<br/>(Auth)"]
         STRIPE["Stripe<br/>(Billing)"]
         NEON["Neon PostgreSQL<br/>(Database)"]
         SENTRY["Sentry<br/>(Observability)"]
@@ -31,20 +34,25 @@ graph TB
         BASEHUB["BaseHub<br/>(CMS)"]
         RESEND["Resend<br/>(Email)"]
         UPSTASH["Upstash<br/>(Rate Limit)"]
+        GARMIN["Garmin Connect<br/>(Health Data)"]
     end
 
-    subgraph "Symphony Engine (Rust)"
-        ENGINE["Symphony Orchestrator<br/>/api/v1/*"]
+    subgraph AI Providers
+        ANTHROPIC["Anthropic<br/>(Claude)"]
+        OPENAI["OpenAI<br/>(GPT)"]
+        GOOGLE_AI["Google AI<br/>(Gemini)"]
+        OLLAMA["Ollama<br/>(Local)"]
     end
 
-    subgraph "Apps (Next.js 15)"
+    subgraph "Apps (Next.js 16)"
+        HEALTH["health<br/>Health Intelligence :3011"]
+        CHAT["chat<br/>AI Chat :3010"]
         APP["app<br/>Dashboard :3000"]
-        API["api<br/>Control Plane :3002"]
+        API["api<br/>API + Webhooks :3002"]
         WEB["web<br/>Marketing :3001"]
         DOCS["docs<br/>Mintlify :3004"]
         EMAIL["email<br/>React Email :3003"]
         STORYBOOK["storybook<br/>Component Dev :6006"]
-        STUDIO["studio<br/>Prisma Studio :3005"]
     end
 
     subgraph "Packages (@repo/*)"
@@ -55,40 +63,40 @@ graph TB
         OBS["@repo/observability"]
         ANALYTICS["@repo/analytics"]
         AI_PKG["@repo/ai"]
+        HT["@repo/health-tools"]
         COLLAB["@repo/collaboration"]
         CMS_PKG["@repo/cms"]
         EMAIL_PKG["@repo/email"]
-        FF["@repo/feature-flags"]
-        I18N["@repo/internationalization"]
-        NC["@repo/next-config"]
-        NOTIF["@repo/notifications"]
-        RL["@repo/rate-limit"]
-        SEC["@repo/security"]
-        SEO["@repo/seo"]
-        STORE["@repo/storage"]
-        TS["@repo/typescript-config"]
-        WH["@repo/webhooks"]
     end
+
+    HEALTH --> AUTH
+    HEALTH --> DB
+    HEALTH --> AI_PKG
+    HEALTH --> DS
+    HEALTH --> HT
+
+    CHAT --> AUTH
+    CHAT --> DB
+    CHAT --> AI_PKG
+    CHAT --> DS
+    CHAT --> HT
 
     APP --> AUTH
     APP --> DB
     APP --> DS
     APP --> OBS
     APP --> COLLAB
-    APP --> NOTIF
 
     API --> AUTH
     API --> DB
     API --> PAY
     API --> OBS
     API --> ANALYTICS
-    API --> WH
 
     WEB --> DS
     WEB --> CMS_PKG
-    WEB --> SEO
 
-    AUTH --> CLERK
+    AUTH --> BETTER_AUTH
     DB --> NEON
     PAY --> STRIPE
     OBS --> SENTRY
@@ -97,72 +105,89 @@ graph TB
     COLLAB --> LIVEBLOCKS
     CMS_PKG --> BASEHUB
     EMAIL_PKG --> RESEND
-    RL --> UPSTASH
+    HT --> GARMIN
 
-    API -.->|"proxy"| ENGINE
+    AI_PKG --> ANTHROPIC
+    AI_PKG --> OPENAI
+    AI_PKG --> GOOGLE_AI
+    AI_PKG --> OLLAMA
 ```
 
 ## Application Layer
 
-Symphony Cloud runs 7 applications, each a separate Next.js (or framework-specific) workspace.
+healthOS runs 8 applications (plus a stale studio app), each a separate workspace.
 
-| App | Port | Purpose | Key Dependencies |
-|-----|------|---------|-----------------|
-| `app` | 3000 | Authenticated dashboard for managing agents, instances, workflows | `@repo/auth`, `@repo/database`, `@repo/design-system`, `@repo/collaboration` |
-| `api` | 3002 | REST API + webhook handlers (Clerk, Stripe) | `@repo/auth`, `@repo/database`, `@repo/payments`, `@repo/analytics` |
-| `web` | 3001 | Public marketing site | `@repo/design-system`, `@repo/cms`, `@repo/seo` |
-| `docs` | 3004 | API documentation (Mintlify) | Standalone |
-| `email` | 3003 | Email template development (React Email) | `@repo/email` |
-| `storybook` | 6006 | Component development and testing | `@repo/design-system` |
-| `studio` | 3005 | Database management (Prisma Studio) | `@repo/database` |
+| App | Port | Purpose | Status (2026-03-18) |
+|-----|------|---------|---------------------|
+| `health` | 3011 | Health AI chat with Claude Haiku 4.5, Garmin tools, biometric analysis | Working |
+| `chat` | 3010 | Multi-provider AI chat (GPT-5 nano, etc.), branching, MCP | Working |
+| `app` | 3000 | Shell dashboard (next-forge default placeholder) | Working (404 expected) |
+| `api` | 3002 | REST API + Stripe webhooks | Working (404 on root expected) |
+| `web` | 3001 | Public marketing site | Needs BASEHUB_TOKEN |
+| `docs` | 3004 | API documentation (Mintlify) | Working |
+| `email` | 3003 | Email template development (React Email) | Working |
+| `storybook` | 6006 | Component development (Storybook 10) | Working |
+| `studio` | 5555 | STALE: Expects Prisma, project uses Drizzle | Not working |
 
-See [[architecture/app-dashboard]] and [[architecture/app-api]] for detailed architecture of the two primary apps.
+See [[architecture/app-dashboard]] and [[architecture/app-api]] for detailed architecture of the primary apps.
 
 ## Package Layer
 
-20 shared packages under `packages/` provide cross-cutting functionality. See [[architecture/package-map]] for the complete dependency graph.
+Shared packages under `packages/` provide cross-cutting functionality. See [[architecture/package-map]] for the complete dependency graph.
+
+Key packages:
+- `@repo/ai` -- AI SDK v6 multi-provider gateway + ToolLoopAgent
+- `@repo/health-tools` -- Garmin query, health snapshot, sleep, training, vitals, nutrition correlation
+- `@repo/auth` -- Better Auth (Google, GitHub, anonymous sessions)
+- `@repo/database` -- Drizzle ORM + Neon PostgreSQL (16 tables)
 
 ## Data Flow
 
 The primary data flow is:
 
-1. User authenticates via Clerk in `apps/app`
-2. Dashboard fetches data from `apps/api` control plane
-3. Control plane reads/writes to Neon PostgreSQL via Prisma
-4. Control plane proxies engine commands to Symphony instances
-5. Stripe webhooks update billing state via `apps/api`
-6. Clerk webhooks sync user/org events via `apps/api`
+1. User authenticates via Better Auth (Google/GitHub OAuth or anonymous) in `apps/health` or `apps/chat`
+2. Auth creates user/session records in Neon PostgreSQL via Drizzle ORM
+3. Chat messages are stored in the `message` table with AI SDK parts format
+4. Health tools query Garmin Connect API for biometric data
+5. AI providers (Claude, GPT, Gemini) generate responses via `@repo/ai`
+6. Stripe webhooks update subscription state via `apps/api`
 
 See [[architecture/data-flow]] for detailed request flow diagrams.
-
-## Symphony Engine Integration
-
-The Symphony engine is a separate Rust process that exposes an HTTP API. Symphony Cloud connects to it via the `@repo/symphony-client` package (planned). The engine API is documented in [[api-contracts/symphony-http-api]].
-
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/v1/state` | GET | Cluster state summary |
-| `/api/v1/{identifier}` | GET | Issue/agent detail |
-| `/api/v1/workspaces` | GET | Workspace listing |
-| `/api/v1/refresh` | POST | Trigger poll cycle |
-| `/api/v1/shutdown` | POST | Graceful shutdown |
-| `/healthz` | GET | Liveness probe |
-| `/readyz` | GET | Readiness probe |
 
 ## Technology Stack
 
 | Layer | Technology | Version |
 |-------|-----------|---------|
-| Framework | Next.js | 15 |
+| Framework | Next.js | 16 |
 | Language | TypeScript | 5.9 |
 | Package Manager | Bun | 1.3.10 |
 | Build System | Turborepo | 2.8+ |
 | Linter | Biome | 2.4.6 |
 | Test Runner | Vitest | 4.0+ |
-| ORM | Prisma | Latest (prisma-client generator) |
-| Database | Neon PostgreSQL | Serverless |
-| Auth | Clerk | @clerk/nextjs 7.x |
+| ORM | **Drizzle** | Latest (drizzle-orm + drizzle-kit) |
+| Database | Neon PostgreSQL | Serverless (project: purple-mouse-62653625, aws-us-east-1) |
+| Auth | **Better Auth** | Latest (Google, GitHub, anonymous) |
+| AI | AI SDK | v6 (Anthropic, OpenAI, Google, Ollama) |
 | Payments | Stripe | stripe 20.x |
 | Observability | Sentry | @sentry/nextjs 10.x |
 | UI Components | shadcn/ui | Via @repo/design-system |
 | Styling | Tailwind CSS | v4 |
+
+> [!important]
+> The ORM is **Drizzle** (NOT Prisma) and auth is **Better Auth** (NOT Clerk). Some documentation and file naming may still reference the old providers due to next-forge scaffolding origins.
+
+## Known Issues (2026-03-18)
+
+| Issue | Severity | Workaround |
+|-------|----------|------------|
+| `apps/web` needs BASEHUB_TOKEN | Low | Skip or mock CMS data |
+| `apps/studio` expects Prisma | Low | Use `drizzle-kit studio` instead |
+| Stripe CLI not installed | Low | `brew install stripe/stripe-cli/stripe` |
+| Some docs reference Prisma/Clerk | Medium | Refer to source code and CLAUDE.md for ground truth |
+
+## Related
+
+- [[architecture/monorepo-topology]] -- Workspace structure
+- [[architecture/package-map]] -- All packages with dependencies
+- [[architecture/data-flow]] -- Request flow diagrams
+- [[decisions/adr-001-next-forge]] -- Why next-forge

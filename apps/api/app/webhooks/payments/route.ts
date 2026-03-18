@@ -1,5 +1,4 @@
 import { analytics } from "@repo/analytics/server";
-import { clerkClient } from "@repo/auth/server";
 import { parseError } from "@repo/observability/error";
 import { log } from "@repo/observability/log";
 import type { Stripe } from "@repo/payments";
@@ -8,39 +7,21 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { env } from "@/env";
 
-const getUserFromCustomerId = async (customerId: string) => {
-  const clerk = await clerkClient();
-  const users = await clerk.users.getUserList();
-
-  const user = users.data.find(
-    (currentUser) => currentUser.privateMetadata.stripeCustomerId === customerId
-  );
-
-  return user;
-};
-
-const handleCheckoutSessionCompleted = async (
-  data: Stripe.Checkout.Session
-) => {
+const handleCheckoutSessionCompleted = (data: Stripe.Checkout.Session) => {
   if (!data.customer) {
     return;
   }
 
   const customerId =
     typeof data.customer === "string" ? data.customer : data.customer.id;
-  const user = await getUserFromCustomerId(customerId);
-
-  if (!user) {
-    return;
-  }
 
   analytics?.capture({
     event: "User Subscribed",
-    distinctId: user.id,
+    distinctId: customerId,
   });
 };
 
-const handleSubscriptionScheduleCanceled = async (
+const handleSubscriptionScheduleCanceled = (
   data: Stripe.SubscriptionSchedule
 ) => {
   if (!data.customer) {
@@ -49,15 +30,10 @@ const handleSubscriptionScheduleCanceled = async (
 
   const customerId =
     typeof data.customer === "string" ? data.customer : data.customer.id;
-  const user = await getUserFromCustomerId(customerId);
-
-  if (!user) {
-    return;
-  }
 
   analytics?.capture({
     event: "User Unsubscribed",
-    distinctId: user.id,
+    distinctId: customerId,
   });
 };
 

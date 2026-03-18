@@ -9,17 +9,18 @@ tags:
   - phase/1
   - status/active
   - type/decision
+last_validated: "2026-03-18"
 ---
 
 # ADR-005: Control Harness & Metalayer
 
 ## Status
 
-**Accepted** -- 2026-03
+**Accepted** -- 2026-03. Updated 2026-03-18 with sensors/setpoints from local dev validation.
 
 ## Context
 
-Symphony Cloud is built by human developers and AI coding agents working together. Without guardrails, agents can:
+healthOS Platform is built by human developers and AI coding agents working together. Without guardrails, agents can:
 
 1. Make changes without understanding the broader architecture
 2. Skip tests or linting before committing
@@ -40,7 +41,7 @@ We need a **control metalayer** -- a set of policies, scripts, and automation th
 
 ### Option B: Custom CLI tool
 
-- TypeScript CLI (`symphony-cloud-cli`) with commands for check, test, build
+- TypeScript CLI with commands for check, test, build
 - More powerful but requires maintenance of the CLI itself
 - Adds complexity to the development setup
 - Harder for agents to understand and modify
@@ -71,32 +72,42 @@ We need a **control metalayer** -- a set of policies, scripts, and automation th
 
 ```yaml
 # .control/policy.yaml
-gates:
+policies:
   database-migration:
+    triggers: ["packages/database/schema.ts", "packages/database/migrations/**"]
     requires: [adr, test, review]
-  api-contract-change:
-    requires: [adr, backward-compatible]
-  new-package:
-    requires: [runbook-update, topology-update]
-  deploy:
-    requires: [ci-pass, smoke-test]
+  auth-change:
+    triggers: ["packages/auth/**", "**/middleware.ts"]
+    requires: [proxy-check, test]
+  env-variable-change:
+    triggers: ["**/keys.ts", "**/.env.example"]
+    requires: [docs-update, validation]
 
 # .control/commands.yaml
 commands:
   smoke: scripts/harness/smoke.sh
   check: scripts/harness/check.sh
   ci: scripts/harness/ci.sh
-  docs-check: scripts/harness/check-docs-freshness.sh
+  migrate: "cd packages/database && bunx drizzle-kit push"
 
-# .control/topology.yaml
+# .control/topology.yaml — full app/package map with health status
 apps:
-  app: { port: 3000, risk: high, domain: dashboard }
-  api: { port: 3002, risk: high, domain: api }
-  web: { port: 3001, risk: medium, domain: marketing }
-  docs: { port: 3004, risk: low, domain: docs }
-  email: { port: 3003, risk: low, domain: email }
-  storybook: { port: 6006, risk: low, domain: design }
-  studio: { port: 3005, risk: low, domain: database }
+  health: { port: 3011, status: healthy }
+  chat:   { port: 3010, status: healthy }
+  api:    { port: 3002, status: healthy }
+  app:    { port: 3000, status: healthy }
+  web:    { port: 3001, status: degraded }  # needs BASEHUB_TOKEN
+  docs:   { port: 3004, status: healthy }
+  email:  { port: 3003, status: healthy }
+  storybook: { port: 6006, status: healthy }
+  studio: { port: 5555, status: stale }     # Prisma leftover
+
+# .control/policy.yaml also includes sensors and setpoints
+sensors:
+  env-setup: { status: partial }
+  app-health: { measured_at: "2026-03-18" }
+  database: { status: healthy }
+  known-issues: { items: [...] }
 ```
 
 ### Layer 2: Scripts (`scripts/harness/`)
@@ -120,15 +131,38 @@ apps:
 | `ci.yml` | PR, push to main | check -> test -> build |
 | `docs-sync.yml` | Changes to `docs/` | check-docs-freshness + check-wikilinks |
 
+## Sensors & Setpoints (added 2026-03-18)
+
+The control metalayer now includes **sensors** (observable system state) and **setpoints** (target values) in `.control/policy.yaml`. This extends the control-loop metaphor:
+
+| Sensor | What It Measures | Current Value | Setpoint |
+|--------|-----------------|---------------|----------|
+| `env-setup` | Environment variable completeness | partial | complete |
+| `app-health` | Dev server status per app | 7/9 healthy, 1 degraded, 1 stale | all healthy |
+| `database` | Neon PostgreSQL connectivity | healthy | healthy |
+| `known-issues` | Outstanding dev setup issues | 4 items | 0 items |
+
+Sensors are updated manually after dev sessions or automatically by CI. They provide a snapshot-in-time view of system health, making it easy for agents to understand what is working and what needs attention.
+
+### Known Issues (setpoint: 0)
+
+| ID | Severity | Summary |
+|----|----------|---------|
+| BASEHUB | low | `@repo/cms` needs BASEHUB_TOKEN for apps/web |
+| STUDIO-PRISMA | low | `apps/studio` expects Prisma but project uses Drizzle |
+| STRIPE-CLI | low | Stripe CLI not installed (webhook testing blocked) |
+| DOCS-STALE | medium | Some docs still reference Prisma/Clerk instead of Drizzle/Better Auth |
+
 ## Agent Integration
 
 Agents must:
 
 1. Start every session by reading `docs/_index.md`
 2. Run `make -f Makefile.control check` before committing
-3. Update relevant docs when changing architecture
-4. Create an ADR before making significant technical decisions
-5. Follow runbooks for operational tasks
+3. Check `.control/policy.yaml` sensors for current system health
+4. Update relevant docs when changing architecture
+5. Create an ADR before making significant technical decisions
+6. Follow runbooks for operational tasks
 
 The `AGENTS.md` file at the repo root provides the canonical agent protocol. See [[decisions/adr-004-knowledge-system]] for the knowledge system design.
 
@@ -138,6 +172,7 @@ The `AGENTS.md` file at the repo root provides the canonical agent protocol. See
 - Quality gates are explicit, reviewable, and versionable
 - Local and CI enforcement prevents broken code from landing
 - Agents have clear constraints and procedures
+- Sensors provide observable system health for both humans and agents
 - Pre-commit hooks provide immediate feedback
 - Policy changes go through PR review
 
@@ -145,12 +180,14 @@ The `AGENTS.md` file at the repo root provides the canonical agent protocol. See
 - Additional files to maintain (`.control/`, `scripts/harness/`, workflows)
 - Pre-commit hooks add latency to commits
 - Shell scripts may have cross-platform issues (macOS vs Linux)
+- Sensors require manual updates until CI automation is built
 - Overhead for small changes (e.g., README typo fix still runs checks)
 
 ### Mitigations
 - `Makefile.control` provides a simple interface
 - Scripts target <10s execution time for pre-commit
 - Shell scripts tested in CI on both macOS and Linux runners
+- Sensor updates can be triggered by harness scripts in the future
 
 ## Related
 
