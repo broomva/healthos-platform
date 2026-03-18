@@ -84,7 +84,6 @@ function SidebarProvider({
       // This sets the cookie to keep the sidebar state.
       // Prefer Cookie Store API when available
       if ("cookieStore" in window) {
-        // @ts-expect-error cookieStore is not yet in TS lib.dom
         void window.cookieStore.set({
           name: SIDEBAR_COOKIE_NAME,
           value: String(openState),

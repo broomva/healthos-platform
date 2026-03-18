@@ -217,7 +217,7 @@ export class MCPClient {
       throw new Error("Client not connected");
     }
     try {
-      return await this.client.tools();
+      return (await this.client.tools()) as Record<string, Tool>;
     } catch (error) {
       this.handlePotentialAuthError(error);
       throw error;

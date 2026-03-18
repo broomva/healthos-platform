@@ -26,7 +26,6 @@ function setCookie(name: string, value: string, maxAge: number): void {
   const secure = window.location.protocol === "https:" ? "; Secure" : "";
   const encodedValue = encodeURIComponent(value);
   if ("cookieStore" in window) {
-    // @ts-expect-error cookieStore is not yet in TS lib.dom
     window.cookieStore
       .set({
         name,
@@ -34,8 +33,7 @@ function setCookie(name: string, value: string, maxAge: number): void {
         path: "/",
         expires: Date.now() + maxAge * 1000,
         sameSite: "lax",
-        secure: window.location.protocol === "https:",
-      })
+      } as CookieInit & Record<string, unknown>)
       .catch(() => {
         // Fail silently if Cookie Store API fails
       });
@@ -50,7 +48,6 @@ function deleteCookie(name: string): void {
     return;
   }
   if ("cookieStore" in window) {
-    // @ts-expect-error cookieStore is not yet in TS lib.dom
     window.cookieStore.delete(name).catch(() => {
       // Fail silently if Cookie Store API fails
     });

@@ -1,4 +1,4 @@
-import { generateText, type ModelMessage, ToolLoopAgent } from "ai";
+import { generateText, type ModelMessage, type ToolSet, ToolLoopAgent } from "ai";
 import type { AppModelId, ModelId } from "@/lib/ai/app-models";
 import { getLanguageModel } from "@/lib/ai/providers";
 import { truncateMessages } from "@/lib/ai/token-utils";
@@ -17,7 +17,7 @@ export async function runResearcher(
   const { config, dataStream, toolCallId, abortSignal } = options;
 
   const model = await getLanguageModel(config.research_model as ModelId);
-  const tools = await getAllTools(config, dataStream, toolCallId);
+  const tools = (await getAllTools(config, dataStream, toolCallId)) as ToolSet;
 
   if (Object.keys(tools).length === 0) {
     throw new Error(

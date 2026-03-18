@@ -4,6 +4,8 @@
     "baseUrl": ".",
     "lib": ["es2023", "DOM", "DOM.Iterable"],
     "target": "ES2022",
+    "declaration": false,
+    "declarationMap": false,
     "paths": {
       "@/*": ["./*"],
       "@repo/*": ["../../packages/*"]
@@ -16,5 +18,12 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "tests/**",
+    "evals/**"
   ]
 }
