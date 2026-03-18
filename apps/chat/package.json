@@ -44,6 +44,7 @@
     "@repo/auth": "workspace:*",
     "@repo/ai": "workspace:*",
     "@repo/design-system": "workspace:*",
+    "@repo/health-tools": "workspace:*",
     "@ai-sdk-tools/store": "1.2.0",
     "@ai-sdk/anthropic": "^3.0.46",
     "@ai-sdk/devtools": "^0.0.15",
