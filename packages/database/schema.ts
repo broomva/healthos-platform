@@ -184,6 +184,23 @@ export const healthBaseline = pgTable("health_baseline", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// ─── Subscriptions ──────────────────────────────────────────
+
+export const subscription = pgTable("subscription", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" })
+    .unique(),
+  plan: varchar("plan", { length: 20 }).notNull().default("free"),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  status: varchar("status", { length: 20 }).notNull().default("active"),
+  currentPeriodEnd: timestamp("current_period_end"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 export const conversationMemory = pgTable("conversation_memory", {
   id: uuid("id").primaryKey().defaultRandom(),
   userId: varchar("user_id", { length: 36 })
@@ -194,5 +211,42 @@ export const conversationMemory = pgTable("conversation_memory", {
   category: varchar("category", { length: 50 }).notNull(),
   confidence: text("confidence"),
   expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── Team Workspaces ────────────────────────────────────────
+
+export const team = pgTable("team", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  ownerId: varchar("owner_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const teamMember = pgTable("team_member", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  teamId: uuid("team_id")
+    .notNull()
+    .references(() => team.id, { onDelete: "cascade" }),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 20 }).notNull().default("athlete"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// ─── Document Sharing ───────────────────────────────────────
+
+export const documentShare = pgTable("document_share", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  documentId: uuid("document_id").notNull(),
+  sharedBy: varchar("shared_by", { length: 36 })
+    .notNull()
+    .references(() => user.id),
+  sharedWith: varchar("shared_with", { length: 36 }).references(() => user.id),
+  shareToken: text("share_token").unique(),
+  permission: varchar("permission", { length: 20 }).notNull().default("view"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
