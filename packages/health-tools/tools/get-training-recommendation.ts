@@ -4,7 +4,7 @@ import { z } from "zod";
 export const getTrainingRecommendation = tool({
   description:
     "Get a daily training recommendation based on current recovery metrics, ACWR, sleep quality, and HRV trends.",
-  parameters: z.object({
+  inputSchema: z.object({
     sport: z
       .enum(["freediving", "swimming", "cycling", "breathwork", "general"])
       .optional()

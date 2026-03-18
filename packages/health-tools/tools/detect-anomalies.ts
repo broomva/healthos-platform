@@ -4,7 +4,7 @@ import { z } from "zod";
 export const detectAnomalies = tool({
   description:
     "Analyze recent health data to detect anomalies and trends. Flags when metrics deviate significantly from personal baselines.",
-  parameters: z.object({
+  inputSchema: z.object({
     metric: z
       .enum(["hrv", "sleep", "resting_hr", "body_battery", "all"])
       .describe("Which metric to analyze"),

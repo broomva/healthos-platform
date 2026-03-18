@@ -4,7 +4,7 @@ import { z } from "zod";
 export const getNutritionCorrelation = tool({
   description:
     "Analyze correlations between nutrition/supplement intake and recovery metrics (sleep quality, HRV, body battery).",
-  parameters: z.object({
+  inputSchema: z.object({
     metric: z
       .enum(["sleep_quality", "hrv", "body_battery", "recovery"])
       .describe("Recovery metric to correlate"),
