@@ -10,11 +10,11 @@
     "typecheck": "echo 'No TypeScript files to check'"
   },
   "dependencies": {
-    "@react-email/components": "1.0.8",
-    "@react-email/preview-server": "5.2.9",
+    "@react-email/components": "1.0.10",
+    "@react-email/preview-server": "5.2.10",
     "@repo/email": "workspace:*",
     "react": "19.2.4",
-    "react-email": "5.2.9"
+    "react-email": "5.2.10"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
