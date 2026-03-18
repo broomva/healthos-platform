@@ -6,3 +6,4 @@ export { getVitals } from "./tools/get-vitals";
 export { getRawData } from "./tools/get-raw-data";
 export { detectAnomalies } from "./tools/detect-anomalies";
 export { getTrainingRecommendation } from "./tools/get-training-recommendation";
+export { getNutritionCorrelation } from "./tools/get-nutrition-correlation";
