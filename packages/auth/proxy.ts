@@ -3,6 +3,6 @@
 // The authMiddleware stub mimics Clerk's signature: callback(auth, request, event)
 // so proxy files that destructure (auth, request, event) work without Clerk.
 export const authMiddleware =
-  (callback: (...args: any[]) => any) =>
-  (request: any, event: any) =>
+  (callback: (...args: unknown[]) => unknown) =>
+  (request: unknown, event: unknown) =>
     callback({}, request, event);

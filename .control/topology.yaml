@@ -1,13 +1,20 @@
 # .control/topology.yaml — Repository topology map for healthOS Platform
 # Describes all apps, packages, and their relationships.
+# Last updated: 2026-03-18 (validated against local dev session)
+#
+# Legend for status field (from 2026-03-18 dev session):
+#   healthy   = verified working in local dev
+#   degraded  = starts but has issues
+#   stale     = next-forge leftover, needs rework or removal
 
 apps:
-  chat:
-    path: "apps/chat"
-    description: "AI-powered health chat agent — multi-provider, tRPC, MCP, branching"
-    port: 3010
+  health:
+    path: "apps/health"
+    description: "Health intelligence dashboard — Garmin tools, biometric analysis, AI chat with Claude Haiku 4.5"
+    port: 3011
     risk: high
-    domain: health+ai
+    domain: health
+    status: healthy  # 2026-03-18: "Hola Carlos" health AI chat working
     dependencies:
       - "@repo/auth"
       - "@repo/database"
@@ -15,12 +22,13 @@ apps:
       - "@repo/design-system"
       - "@repo/health-tools"
 
-  health:
-    path: "apps/health"
-    description: "Health intelligence dashboard — Garmin tools, biometric analysis"
-    port: 3011
+  chat:
+    path: "apps/chat"
+    description: "AI-powered chat agent — multi-provider (GPT-5 nano, etc.), branching, MCP, Write/Learn/Code categories"
+    port: 3010
     risk: high
-    domain: health
+    domain: health+ai
+    status: healthy  # 2026-03-18: AI chat with sign-in working
     dependencies:
       - "@repo/auth"
       - "@repo/database"
@@ -30,10 +38,12 @@ apps:
 
   app:
     path: "apps/app"
-    description: "Shell application (next-forge default, placeholder)"
+    description: "Shell application (next-forge default, placeholder — no root page)"
     port: 3000
     risk: low
     domain: dashboard
+    status: healthy  # 2026-03-18: proxy fixed, 404 expected (no root page)
+    notes: "Auth proxy.ts bug fixed 2026-03-18 — was returning undefined, now wraps callbacks properly"
     dependencies:
       - "@repo/auth"
       - "@repo/database"
@@ -48,10 +58,11 @@ apps:
 
   api:
     path: "apps/api"
-    description: "Control plane API (Next.js Route Handlers)"
+    description: "API server + Stripe webhooks (404 on root is expected — endpoints on sub-paths)"
     port: 3002
     risk: high
     domain: api
+    status: healthy  # 2026-03-18: 404 on root expected
     dependencies:
       - "@repo/auth"
       - "@repo/database"
@@ -59,32 +70,15 @@ apps:
       - "@repo/rate-limit"
       - "@repo/security"
       - "@repo/webhooks"
-      - "@repo/symphony-client"
-    routes:
-      v1:
-        instances: "CRUD + state/refresh proxy + monitoring"
-        workflows: "CRUD + deploy to instance"
-        runs: "List + detail with sessions"
-        api-keys: "List (masked) + create (encrypted) + delete"
-        usage: "Aggregate billing period stats"
-        settings: "Get/update org settings"
-      cron:
-        monitor: "Poll /readyz + scrape metrics for all instances"
-      webhooks:
-        auth: "Clerk webhook handler (Svix)"
-        payments: "Stripe webhook handler"
-    lib:
-      auth: "Clerk auth helper (authenticateRequest, apiError)"
-      crypto: "AES-256-GCM encrypt/decrypt for API tokens"
-      railway: "Railway GraphQL provisioning service"
-      monitoring: "Instance health check runner"
 
   web:
     path: "apps/web"
-    description: "Marketing website (Next.js)"
+    description: "Marketing website (Next.js) — requires BASEHUB_TOKEN for CMS layout"
     port: 3001
     risk: low
     domain: marketing
+    status: degraded  # 2026-03-18: NEEDS BASEHUB_TOKEN, CMS layout fails
+    notes: "@repo/cms needs BASEHUB_TOKEN. Without it the layout component throws."
     dependencies:
       - "@repo/design-system"
       - "@repo/seo"
@@ -97,6 +91,7 @@ apps:
     port: 3004
     risk: low
     domain: docs
+    status: healthy  # 2026-03-18: Mintlify docs working
     dependencies: []
 
   email:
@@ -105,31 +100,35 @@ apps:
     port: 3003
     risk: low
     domain: email
+    status: healthy  # 2026-03-18: React Email preview working
     dependencies:
       - "@repo/email"
 
   storybook:
     path: "apps/storybook"
-    description: "Component library explorer (Storybook)"
+    description: "Component library explorer (Storybook 10)"
     port: 6006
     risk: low
     domain: design
+    status: healthy  # 2026-03-18: Storybook component library working
     dependencies:
       - "@repo/design-system"
 
   studio:
     path: "apps/studio"
-    description: "Database studio (Prisma Studio)"
+    description: "Database studio — STALE: expects Prisma but project uses Drizzle ORM"
     port: 5555
     risk: medium
     domain: database
+    status: stale  # 2026-03-18: next-forge leftover, use drizzle-kit studio instead
+    notes: "Use 'cd packages/database && bunx drizzle-kit studio' instead of this app"
     dependencies:
       - "@repo/database"
 
 packages:
   ai:
     path: "packages/ai"
-    description: "AI/LLM integrations"
+    description: "AI SDK v6 multi-provider gateway (Anthropic, OpenAI, Google, Ollama) + ToolLoopAgent"
     domain: ai
 
   analytics:
@@ -139,13 +138,19 @@ packages:
 
   auth:
     path: "packages/auth"
-    description: "Authentication (Better Auth — Google, GitHub, anonymous)"
+    description: "Authentication (Better Auth — Google, GitHub, anonymous). NOT Clerk."
     domain: auth
+    notes: |
+      proxy.ts provides a stub that mimics Clerk's middleware signature
+      so next-forge proxy files work. Bug fixed 2026-03-18: was returning
+      undefined, now wraps callback as (request, event) => callback({}, request, event).
+      keys.ts validates: BETTER_AUTH_SECRET, BETTER_AUTH_URL, GOOGLE_CLIENT_ID/SECRET, GITHUB_CLIENT_ID/SECRET
 
   cms:
     path: "packages/cms"
-    description: "Content management (BaseHub)"
+    description: "Content management (BaseHub) — requires BASEHUB_TOKEN"
     domain: content
+    notes: "Without BASEHUB_TOKEN, apps/web layout fails to render"
 
   collaboration:
     path: "packages/collaboration"
@@ -154,13 +159,22 @@ packages:
 
   database:
     path: "packages/database"
-    description: "Drizzle ORM + Neon PostgreSQL"
+    description: "Drizzle ORM + Neon PostgreSQL (NOT Prisma)"
     domain: database
     risk: high
+    notes: |
+      Neon project: healthos-platform (purple-mouse-62653625, aws-us-east-1)
+      Schema: packages/database/schema.ts (16 tables)
+      Config: packages/database/drizzle.config.ts
+      Connection: drizzle-orm/postgres-js via postgres driver
+      Tables: user, session, account, verification, chat, message, vote,
+              document, suggestion, stream, project, userCredit, userPreference,
+              healthBaseline, subscription, conversationMemory, team,
+              teamMember, documentShare
 
   design-system:
     path: "packages/design-system"
-    description: "UI components (shadcn/ui + Tailwind)"
+    description: "UI components (shadcn/ui + Tailwind CSS v4)"
     domain: design
 
   email:
@@ -172,6 +186,12 @@ packages:
     path: "packages/feature-flags"
     description: "Feature flags (Vercel Flags)"
     domain: infra
+
+  health-tools:
+    path: "packages/health-tools"
+    description: "Garmin health tools — query, snapshot, sleep, training, vitals, nutrition correlation"
+    domain: health
+    risk: low
 
   internationalization:
     path: "packages/internationalization"
@@ -195,7 +215,7 @@ packages:
 
   payments:
     path: "packages/payments"
-    description: "Billing (Stripe)"
+    description: "Billing (Stripe) — Stripe CLI not yet installed locally"
     domain: billing
 
   rate-limit:
@@ -223,17 +243,6 @@ packages:
     description: "Shared TypeScript configuration"
     domain: infra
 
-  symphony-client:
-    path: "packages/symphony-client"
-    description: "HTTP client for Symphony engine API (/api/v1/state, /readyz, etc.)"
-    domain: api
-
-  health-tools:
-    path: "packages/health-tools"
-    description: "Garmin health tools — query, snapshot, sleep, training, vitals"
-    domain: health
-    risk: low
-
   webhooks:
     path: "packages/webhooks"
     description: "Webhook handling (Svix)"
@@ -246,3 +255,31 @@ knowledge:
   runbooks: "docs/runbooks/"
   api_contracts: "docs/api-contracts/"
   schemas: "docs/schemas/"
+
+# ─── Infrastructure ─────────────────────────────────────────
+
+infrastructure:
+  database:
+    provider: "Neon Serverless PostgreSQL"
+    project: "healthos-platform"
+    project_id: "purple-mouse-62653625"
+    region: "aws-us-east-1"
+    orm: "Drizzle ORM (NOT Prisma)"
+
+  auth:
+    provider: "Better Auth"
+    methods: ["Google OAuth", "GitHub OAuth", "Anonymous sessions"]
+    notes: "NOT Clerk — docs referencing Clerk are stale"
+
+  deployment:
+    provider: "Vercel (planned)"
+    cli_auth: "carlos-broomva-tech"
+    projects_linked: false
+
+  secrets:
+    generated:
+      - AUTH_SECRET
+      - BETTER_AUTH_SECRET
+      - CRON_SECRET
+      - MCP_ENCRYPTION_KEY
+    method: "openssl rand -base64 32"

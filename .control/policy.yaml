@@ -1,19 +1,22 @@
-# .control/policy.yaml — Policy gates for Symphony Cloud
+# .control/policy.yaml — Policy gates for healthOS Platform
 # Each policy defines risk level, required checks, and approval conditions.
+# Last updated: 2026-03-18 (local dev setup validation)
 
 policies:
   database-migration:
-    description: "Any change to packages/database/prisma/schema.prisma"
+    description: "Any change to packages/database/schema.ts or migrations/"
     risk: high
     triggers:
-      - "packages/database/prisma/schema.prisma"
-      - "packages/database/prisma/migrations/**"
+      - "packages/database/schema.ts"
+      - "packages/database/migrations/**"
+      - "packages/database/drizzle.config.ts"
     requires:
       - adr: "Must have an ADR in docs/decisions/ explaining the schema change"
       - tests: "Migration must include or update relevant tests"
       - backup: "Ensure a database backup exists before applying to production"
       - review: "Requires at least one reviewer with database domain knowledge"
-    rollback: "Use prisma migrate resolve to mark failed migrations"
+    rollback: "Create a new Drizzle migration to reverse the change, or restore from Neon branch snapshot"
+    notes: "ORM is Drizzle (NOT Prisma). Schema lives in packages/database/schema.ts, not a .prisma file."
 
   dependency-update:
     description: "Adding or updating dependencies in any package.json"
@@ -38,8 +41,23 @@ policies:
     requires:
       - docs: "Update docs/schemas/env-variables.md with the new variable"
       - secrets: "Never commit actual secret values"
-      - validation: "Add Zod validation in the relevant env.ts file"
+      - validation: "Add Zod validation in the relevant keys.ts file"
     notes: "All env vars must be documented and validated at startup."
+
+  auth-change:
+    description: "Any change to packages/auth or auth-related middleware"
+    risk: high
+    triggers:
+      - "packages/auth/**"
+      - "**/middleware.ts"
+    requires:
+      - proxy: "Verify packages/auth/proxy.ts callback signature stays compatible"
+      - test: "Test sign-in flow in at least one app (health or chat)"
+    notes: |
+      Auth is Better Auth (NOT Clerk). The proxy.ts stub mimics Clerk's
+      (auth, request, event) signature so middleware files work without Clerk.
+      Bug fix history: proxy.ts originally returned undefined, breaking
+      Next.js 16 middleware. Fixed 2026-03-18.
 
   new-package:
     description: "Creating a new workspace package under packages/ or apps/"
@@ -77,3 +95,89 @@ policies:
       - policy: "All policy gates for included changes must be satisfied"
       - staging: "Changes should be verified in preview deployment first"
     rollback: "Use Vercel instant rollback to previous deployment"
+
+# ─── Sensors & Setpoints ────────────────────────────────────
+# Sensors track observable system health; setpoints are target values.
+
+sensors:
+  env-setup:
+    description: "Environment variable completeness for local dev"
+    measured_at: "2026-03-18"
+    status: partial
+    detail: |
+      .env.local generated for: packages/database, apps/health, apps/chat, apps/api, apps/app, apps/web
+      Secrets generated: AUTH_SECRET, BETTER_AUTH_SECRET, CRON_SECRET, MCP_ENCRYPTION_KEY
+      Missing: BASEHUB_TOKEN (blocks apps/web CMS layout)
+      Not installed: Stripe CLI (non-blocking)
+      Vercel: CLI authenticated (carlos-broomva-tech), no projects linked yet
+
+  app-health:
+    description: "Dev server status across all apps"
+    measured_at: "2026-03-18"
+    apps:
+      health:
+        port: 3011
+        status: healthy
+        notes: "Health AI chat with Claude Haiku 4.5 — shows 'Hola Carlos'"
+      chat:
+        port: 3010
+        status: healthy
+        notes: "AI chat with GPT-5 nano, sign-in, Write/Learn/Code categories"
+      api:
+        port: 3002
+        status: healthy
+        notes: "404 on root (expected — API endpoints on sub-paths)"
+      app:
+        port: 3000
+        status: healthy
+        notes: "Auth proxy fixed, 404 on root (no root page in next-forge default)"
+      web:
+        port: 3001
+        status: degraded
+        notes: "NEEDS BASEHUB_TOKEN — CMS layout fails without BaseHub token"
+      email:
+        port: 3003
+        status: healthy
+        notes: "React Email preview working"
+      storybook:
+        port: 6006
+        status: healthy
+        notes: "Storybook 10 component library working"
+      docs:
+        port: 3004
+        status: healthy
+        notes: "Mintlify documentation working"
+
+  database:
+    description: "Neon PostgreSQL connection status"
+    measured_at: "2026-03-18"
+    status: healthy
+    detail: |
+      Project: healthos-platform (purple-mouse-62653625)
+      Region: aws-us-east-1
+      ORM: Drizzle (NOT Prisma)
+      Schema: 16 tables — user, session, account, verification, chat, message,
+              vote, document, suggestion, stream, project, userCredit,
+              userPreference, healthBaseline, subscription, conversationMemory,
+              team, teamMember, documentShare
+
+  known-issues:
+    description: "Outstanding issues from local dev setup"
+    measured_at: "2026-03-18"
+    items:
+      - id: "BASEHUB"
+        severity: low
+        summary: "@repo/cms needs BASEHUB_TOKEN for apps/web CMS layout"
+        workaround: "Skip apps/web or mock CMS data"
+      - id: "STUDIO-PRISMA"
+        severity: low
+        summary: "apps/studio expects Prisma but project uses Drizzle ORM"
+        workaround: "Use drizzle-kit studio or direct database client instead"
+      - id: "STRIPE-CLI"
+        severity: low
+        summary: "Stripe CLI not installed (webhook testing blocked)"
+        workaround: "Install via 'brew install stripe/stripe-cli/stripe'"
+      - id: "DOCS-STALE"
+        severity: medium
+        summary: "Multiple docs still reference Prisma/Clerk instead of Drizzle/Better Auth"
+        workaround: "Refer to CLAUDE.md and actual source code for ground truth"

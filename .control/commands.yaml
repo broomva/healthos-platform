@@ -1,5 +1,6 @@
-# .control/commands.yaml — Canonical commands for Symphony Cloud
+# .control/commands.yaml — Canonical commands for healthOS Platform
 # Each command maps to a harness script in scripts/harness/.
+# Last updated: 2026-03-18 (corrected ORM references from Prisma to Drizzle)
 
 commands:
   smoke:
@@ -50,10 +51,31 @@ commands:
     timeout: 300
     usage: "make -f Makefile.control deploy"
     when: "After all CI checks pass and PR is approved"
+    notes: "Vercel CLI authenticated (carlos-broomva-tech) but no projects linked yet"
 
   migrate:
-    description: "Run Prisma format, generate, and push schema"
-    script: "cd packages/database && bunx prisma format && bunx prisma generate && bunx prisma db push"
+    description: "Run Drizzle Kit push to apply schema changes to the database"
+    script: "cd packages/database && bunx drizzle-kit push"
     timeout: 60
     usage: "bun run db:push"
-    when: "After schema.prisma changes"
+    when: "After packages/database/schema.ts changes"
+    notes: |
+      ORM is Drizzle (NOT Prisma). Schema defined in packages/database/schema.ts.
+      Config in packages/database/drizzle.config.ts.
+      For generating migration SQL files: bunx drizzle-kit generate
+      For applying migration files: bunx drizzle-kit migrate
+
+  migrate-generate:
+    description: "Generate Drizzle migration SQL files from schema diff"
+    script: "cd packages/database && bunx drizzle-kit generate"
+    timeout: 30
+    usage: "cd packages/database && bunx drizzle-kit generate"
+    when: "When creating versioned migration files for production"
+
+  studio:
+    description: "Open Drizzle Kit Studio for database inspection"
+    script: "cd packages/database && bunx drizzle-kit studio"
+    timeout: 0  # runs indefinitely
+    usage: "cd packages/database && bunx drizzle-kit studio"
+    when: "Inspecting or debugging database contents"
+    notes: "apps/studio (Prisma Studio) is a next-forge leftover; use drizzle-kit studio instead"
