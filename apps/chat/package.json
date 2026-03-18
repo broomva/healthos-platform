@@ -11,8 +11,8 @@
     "analyze": "next experimental-analyze",
     "start": "next start",
     "prod": "bun run build && bun run start",
-    "lint": "bunx ultracite@7.2.3 check",
-    "format": "bunx ultracite@7.2.3 fix",
+    "lint": "bunx ultracite@7.3.2 check",
+    "format": "bunx ultracite@7.3.2 fix",
     "check-env": "bun scripts/check-env.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "export VERCEL_ENV=production && bash scripts/with-db.sh bunx tsx lib/db/migrate.ts",
@@ -188,7 +188,7 @@
     "tsx": "^4.19.1",
     "tw-animate-css": "^1.3.7",
     "typescript": "^5.9.3",
-    "ultracite": "7.2.3",
+    "ultracite": "7.3.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.0"
   }
