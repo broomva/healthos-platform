@@ -21,7 +21,9 @@
       "!docs",
       "!apps/docs/**/*.json",
       "!apps/email/.react-email",
-      "!packages/cms/basehub-types.d.ts"
+      "!packages/cms/basehub-types.d.ts",
+      "!apps/chat",
+      "!apps/health"
     ]
   }
 }
