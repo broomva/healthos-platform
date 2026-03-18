@@ -9,12 +9,14 @@ tags:
   - phase/1
   - status/active
   - type/runbook
+last_validated: "2026-03-18"
 ---
 
 # Runbook: Local Development Setup
 
 > [!context]
-> This runbook covers setting up Symphony Cloud for local development from scratch. Follow these steps in order.
+> This runbook covers setting up healthOS Platform for local development from scratch.
+> Last validated: 2026-03-18 via agent-browser session with all apps verified.
 
 ## Prerequisites
 
@@ -30,20 +32,24 @@ You will need accounts and API keys for:
 
 | Service | Required | Purpose | Docs |
 |---------|----------|---------|------|
-| Clerk | Yes | Authentication | https://clerk.com |
 | Neon | Yes | PostgreSQL database | https://neon.tech |
+| Better Auth | Yes (built-in) | Authentication (Google, GitHub, anonymous) | https://www.better-auth.com |
+| Google Cloud | For Google OAuth | OAuth client credentials | https://console.cloud.google.com |
+| GitHub | For GitHub OAuth | OAuth app credentials | https://github.com/settings/developers |
 | Stripe | For billing | Payment processing | https://stripe.com |
 | Sentry | For observability | Error tracking | https://sentry.io |
-| PostHog | For analytics | Product analytics | https://posthog.com |
-| Liveblocks | Optional | Real-time collaboration | https://liveblocks.io |
+| BaseHub | For apps/web CMS | Content management | https://basehub.com |
+
+> [!important]
+> The auth provider is **Better Auth** (NOT Clerk). Some file names may still reference Clerk due to next-forge scaffolding, but the actual auth logic uses Better Auth with Google, GitHub, and anonymous session support.
 
 ## Steps
 
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url> symphony-cloud
-cd symphony-cloud
+git clone <repository-url> healthos-platform
+cd healthos-platform
 ```
 
 ### 2. Install Dependencies
@@ -55,58 +61,66 @@ bun install
 > [!tip]
 > Bun is the required package manager (`packageManager: "bun@1.3.10"` in `package.json`). Do not use npm or yarn.
 
-### 3. Configure Environment Variables
+### 3. Create Neon Database
 
-Copy the example env files for each app:
+1. Create a Neon Serverless PostgreSQL project (e.g., "healthos-platform")
+2. Note the connection string (format: `postgresql://...@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require`)
+
+### 4. Generate Secrets
+
+Generate cryptographic secrets for auth and encryption:
 
 ```bash
-cp apps/app/.env.example apps/app/.env.local
-cp apps/api/.env.example apps/api/.env.local
-cp apps/web/.env.example apps/web/.env.local
+# Generate each secret
+openssl rand -base64 32  # AUTH_SECRET
+openssl rand -base64 32  # BETTER_AUTH_SECRET
+openssl rand -base64 32  # CRON_SECRET
+openssl rand -base64 32  # MCP_ENCRYPTION_KEY
 ```
 
-Fill in the required values. See [[schemas/env-variables]] for the complete catalog.
+### 5. Configure Environment Variables
+
+Create `.env.local` files for the following locations:
+
+| Location | Key Variables |
+|----------|-------------|
+| `packages/database/.env.local` | `DATABASE_URL` |
+| `apps/health/.env.local` | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3011` |
+| `apps/chat/.env.local` | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3010` |
+| `apps/api/.env.local` | `DATABASE_URL`, `CRON_SECRET`, auth secrets |
+| `apps/app/.env.local` | `DATABASE_URL`, `BETTER_AUTH_SECRET`, `BETTER_AUTH_URL=http://localhost:3000` |
+| `apps/web/.env.local` | `BASEHUB_TOKEN` (required for CMS layout) |
 
 **Minimum required variables**:
 
 ```env
-# Clerk (apps/app and apps/api)
-CLERK_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
+# Database (all apps that use @repo/database)
+DATABASE_URL=postgresql://...@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require
 
-# Database (packages/database)
-DATABASE_URL=postgresql://...@ep-xxx.us-east-2.aws.neon.tech/neondb?sslmode=require
+# Better Auth
+BETTER_AUTH_SECRET=<generated-secret>
+BETTER_AUTH_URL=http://localhost:<app-port>
+
+# Optional: OAuth providers
+GOOGLE_CLIENT_ID=...
+GOOGLE_CLIENT_SECRET=...
+GITHUB_CLIENT_ID=...
+GITHUB_CLIENT_SECRET=...
 ```
 
-### 4. Generate Prisma Client
+See [[schemas/env-variables]] for the complete catalog.
+
+### 6. Push Database Schema
+
+The project uses **Drizzle ORM** (NOT Prisma). Push the schema to Neon:
 
 ```bash
-cd packages/database && bunx prisma generate && cd ../..
+cd packages/database && bunx drizzle-kit push
 ```
 
-Or use the root script:
+This applies the schema from `packages/database/schema.ts` directly. No migration files are created (use `drizzle-kit generate` for versioned migrations).
 
-```bash
-bun db:push
-```
-
-### 5. Push Database Schema
-
-For initial setup (no migration files needed):
-
-```bash
-bun db:push
-```
-
-For creating migration files:
-
-```bash
-bun migrate
-```
-
-See [[runbooks/database-migration]] for the full migration workflow.
-
-### 6. Start Development Servers
+### 7. Start Development Servers
 
 Start all apps simultaneously:
 
@@ -117,25 +131,27 @@ bun dev
 Or start individual apps:
 
 ```bash
-# Dashboard only
-cd apps/app && bun dev
+# Health dashboard only
+cd apps/health && bun dev
 
-# API only
-cd apps/api && bun dev
+# Chat only
+cd apps/chat && bun dev
 ```
 
-### 7. Verify Setup
+### 8. Verify Setup
 
-| URL | Expected |
-|-----|----------|
-| http://localhost:3000 | Dashboard (redirects to sign-in) |
-| http://localhost:3001 | Marketing site |
-| http://localhost:3002/health | API health check (`200 OK`) |
-| http://localhost:3004 | Mintlify docs |
-| http://localhost:3003 | React Email preview |
-| http://localhost:6006 | Storybook |
+| App | URL | Expected | Status (2026-03-18) |
+|-----|-----|----------|---------------------|
+| health | http://localhost:3011 | Health AI chat with Claude Haiku | Working |
+| chat | http://localhost:3010 | AI chat (GPT-5 nano), sign-in page | Working |
+| api | http://localhost:3002 | 404 on root (expected, endpoints on sub-paths) | Working |
+| app | http://localhost:3000 | 404 on root (no root page in next-forge default) | Working |
+| web | http://localhost:3001 | Marketing site (requires BASEHUB_TOKEN) | Needs token |
+| email | http://localhost:3003 | React Email preview | Working |
+| storybook | http://localhost:6006 | Storybook 10 component library | Working |
+| docs | http://localhost:3004 | Mintlify documentation | Working |
 
-### 8. Install Git Hooks (Optional)
+### 9. Install Git Hooks (Optional)
 
 ```bash
 # If scripts/harness/install-hooks.sh exists:
@@ -166,35 +182,55 @@ bun build
 > [!important]
 > `bun build` runs tests first (configured in `turbo.json`). If tests fail, the build will not proceed.
 
-### Opening Prisma Studio
+### Database Inspection
+
+Use Drizzle Kit Studio (NOT Prisma Studio):
 
 ```bash
-cd packages/database && bunx prisma studio
+cd packages/database && bunx drizzle-kit studio
 ```
 
-Or start the studio app (port 3005).
+> [!warning]
+> `apps/studio` is a next-forge leftover that expects Prisma. It does not work with the Drizzle-based schema. Use `drizzle-kit studio` instead.
 
 ## Troubleshooting
 
 ### "DATABASE_URL is not set"
 
-Ensure your `.env.local` file exists in the app directory and contains a valid `DATABASE_URL`. The `@repo/database` package reads this via `@t3-oss/env-nextjs`.
+Ensure your `.env.local` file exists in `packages/database/` and the consuming app's directory, and contains a valid `DATABASE_URL`. The `@repo/database` package validates this via `@t3-oss/env-nextjs`.
 
-### Prisma Client Not Generated
+### Auth Proxy Middleware Error
 
-Run `bunx prisma generate` in `packages/database/`. The generated client is output to `packages/database/generated/`.
+If Next.js middleware crashes with an undefined return, check `packages/auth/proxy.ts`. The `authMiddleware` function must wrap callbacks properly:
+
+```typescript
+// Correct (fixed 2026-03-18):
+export const authMiddleware =
+  (callback: (...args: any[]) => any) =>
+  (request: any, event: any) =>
+    callback({}, request, event);
+
+// WRONG (original, caused crashes):
+// export const authMiddleware = () => undefined;
+```
+
+### apps/web Fails to Start
+
+The marketing site requires `BASEHUB_TOKEN` for the CMS layout component. Without it, the layout throws. Either:
+- Add a valid BaseHub token to `apps/web/.env.local`
+- Or skip this app during development
+
+### apps/studio Does Not Work
+
+`apps/studio` is a next-forge leftover that expects Prisma. This project uses Drizzle ORM. Use `cd packages/database && bunx drizzle-kit studio` for database inspection.
 
 ### Port Already in Use
 
-The default ports are 3000-3005 and 6006. If a port is occupied, Next.js will auto-increment to the next available port.
-
-### Clerk Redirect Loops
-
-Ensure both `CLERK_SECRET_KEY` and `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` are set. They must be from the same Clerk application.
+The default ports are 3000-3004, 3010-3011, and 6006. If a port is occupied, Next.js will auto-increment to the next available port.
 
 ## Related
 
 - [[architecture/monorepo-topology]] -- Workspace structure
 - [[schemas/env-variables]] -- All environment variables
-- [[runbooks/database-migration]] -- Schema change workflow
+- [[runbooks/database-migration]] -- Schema change workflow (Drizzle)
 - [[decisions/adr-001-next-forge]] -- Why next-forge

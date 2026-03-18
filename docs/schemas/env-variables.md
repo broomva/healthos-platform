@@ -9,12 +9,14 @@ tags:
   - phase/1
   - status/active
   - type/schema
+last_validated: "2026-03-18"
 ---
 
 # Environment Variables Catalog
 
 > [!context]
-> This catalogs all environment variables used across Symphony Cloud. Variables are validated at runtime using `@t3-oss/env-nextjs` with Zod schemas in each package's `keys.ts` file.
+> This catalogs all environment variables used across healthOS Platform. Variables are validated at runtime using `@t3-oss/env-nextjs` with Zod schemas in each package's `keys.ts` file.
+> Last validated: 2026-03-18 against actual `.env.local` files and `keys.ts` sources.
 
 ## Configuration Pattern
 
@@ -54,21 +56,33 @@ export const env = createEnv({
 
 ## Variable Catalog
 
-### Authentication (`@repo/auth`)
+### Authentication (`@repo/auth`) — Better Auth
+
+> [!important]
+> Auth uses **Better Auth** (NOT Clerk). The variables below are the actual ones validated in `packages/auth/keys.ts`.
 
 | Variable | Type | Required | Scope | Description |
 |----------|------|----------|-------|-------------|
-| `CLERK_SECRET_KEY` | string | Yes | Server | Clerk API secret key |
-| `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | string | Yes | Client | Clerk publishable key |
-| `CLERK_WEBHOOK_SECRET` | string | For webhooks | Server | Svix signing secret for Clerk webhooks |
-| `NEXT_PUBLIC_CLERK_SIGN_IN_URL` | string | No | Client | Custom sign-in page URL |
-| `NEXT_PUBLIC_CLERK_SIGN_UP_URL` | string | No | Client | Custom sign-up page URL |
+| `BETTER_AUTH_SECRET` | string | Yes | Server | Better Auth session signing secret (generate: `openssl rand -base64 32`) |
+| `BETTER_AUTH_URL` | url | Yes | Server | Better Auth base URL (e.g., `http://localhost:3011`) |
+| `GOOGLE_CLIENT_ID` | string | For Google OAuth | Server | Google OAuth client ID |
+| `GOOGLE_CLIENT_SECRET` | string | For Google OAuth | Server | Google OAuth client secret |
+| `GITHUB_CLIENT_ID` | string | For GitHub OAuth | Server | GitHub OAuth app client ID |
+| `GITHUB_CLIENT_SECRET` | string | For GitHub OAuth | Server | GitHub OAuth app client secret |
+
+### Secrets (generated during setup)
+
+| Variable | Type | Required | Scope | Description |
+|----------|------|----------|-------|-------------|
+| `AUTH_SECRET` | string | Yes | Server | General auth secret (generate: `openssl rand -base64 32`) |
+| `CRON_SECRET` | string | For monitoring | Server | Bearer token to protect cron endpoints |
+| `MCP_ENCRYPTION_KEY` | string | For MCP | Server | Encryption key for MCP tool communication |
 
 ### Database (`@repo/database`)
 
 | Variable | Type | Required | Scope | Description |
 |----------|------|----------|-------|-------------|
-| `DATABASE_URL` | string | Yes | Server | Neon PostgreSQL connection string |
+| `DATABASE_URL` | string | Yes | Server | Neon PostgreSQL connection string (format: `postgresql://...@ep-xxx.us-east-1.aws.neon.tech/neondb?sslmode=require`) |
 
 ### Payments (`@repo/payments`)
 
@@ -106,7 +120,7 @@ export const env = createEnv({
 
 | Variable | Type | Required | Scope | Description |
 |----------|------|----------|-------|-------------|
-| `BASEHUB_TOKEN` | string | No | Server | BaseHub CMS token |
+| `BASEHUB_TOKEN` | string | For apps/web | Server | BaseHub CMS token (required for marketing site layout) |
 
 ### Email (`@repo/email`)
 
@@ -133,22 +147,13 @@ export const env = createEnv({
 |----------|------|----------|-------|-------------|
 | `BLOB_READ_WRITE_TOKEN` | string | No | Server | Vercel Blob storage token |
 
-### Symphony Client (`@repo/symphony-client`)
+### AI (`@repo/ai`)
 
 | Variable | Type | Required | Scope | Description |
 |----------|------|----------|-------|-------------|
-| `SYMPHONY_API_URL` | string | For engine | Server | Default Symphony engine URL |
-| `SYMPHONY_API_TOKEN` | string | No | Server | Default Symphony engine API token |
-
-### Control Plane (apps/api)
-
-| Variable | Type | Required | Scope | Description |
-|----------|------|----------|-------|-------------|
-| `ENCRYPTION_KEY` | string | For token encryption | Server | AES-256 key, base64-encoded (32 bytes). Generate: `openssl rand -base64 32` |
-| `RAILWAY_API_TOKEN` | string | For provisioning | Server | Railway API authentication token |
-| `RAILWAY_PROJECT_ID` | string | For provisioning | Server | Railway project ID for instance provisioning |
-| `RAILWAY_ENVIRONMENT_ID` | string | For provisioning | Server | Railway environment ID |
-| `CRON_SECRET` | string | For monitoring | Server | Bearer token to protect /cron/monitor endpoint |
+| `ANTHROPIC_API_KEY` | string | For Claude models | Server | Anthropic API key |
+| `OPENAI_API_KEY` | string | For GPT models | Server | OpenAI API key |
+| `GOOGLE_GENERATIVE_AI_API_KEY` | string | For Gemini models | Server | Google AI API key |
 
 ## App-Level Variables
 
@@ -156,10 +161,23 @@ export const env = createEnv({
 
 | Variable | Type | Required | Scope | Description |
 |----------|------|----------|-------|-------------|
-| `NEXT_PUBLIC_APP_URL` | url | Yes | Client | Dashboard URL (e.g., https://app.symphonycloud.dev) |
-| `NEXT_PUBLIC_WEB_URL` | url | Yes | Client | Marketing site URL (e.g., https://symphonycloud.dev) |
-| `NEXT_PUBLIC_API_URL` | url | No | Client | API URL (e.g., https://api.symphonycloud.dev) |
-| `NEXT_PUBLIC_DOCS_URL` | url | No | Client | Docs URL (e.g., https://docs.symphonycloud.dev) |
+| `NEXT_PUBLIC_APP_URL` | url | Yes | Client | Dashboard URL (e.g., https://app.healthos.dev) |
+| `NEXT_PUBLIC_WEB_URL` | url | Yes | Client | Marketing site URL (e.g., https://healthos.dev) |
+| `NEXT_PUBLIC_API_URL` | url | No | Client | API URL (e.g., https://api.healthos.dev) |
+| `NEXT_PUBLIC_DOCS_URL` | url | No | Client | Docs URL (e.g., https://docs.healthos.dev) |
+
+## .env.local File Locations (validated 2026-03-18)
+
+Environment files created during local setup:
+
+| Location | Purpose |
+|----------|---------|
+| `packages/database/.env.local` | DATABASE_URL |
+| `apps/health/.env.local` | Auth, DB, AI keys |
+| `apps/chat/.env.local` | Auth, DB, AI keys |
+| `apps/api/.env.local` | Auth, DB, CRON_SECRET |
+| `apps/app/.env.local` | Auth, DB |
+| `apps/web/.env.local` | BASEHUB_TOKEN |
 
 ## Security Notes
 
@@ -169,24 +187,9 @@ export const env = createEnv({
 > - **`emptyStringAsUndefined: true`** means empty strings are treated as missing values
 > - API keys and secrets should be rotated regularly
 > - Use different keys for development and production
-
-## File Locations
-
-Environment files per app:
-- `apps/app/.env.local`
-- `apps/api/.env.local`
-- `apps/web/.env.local`
-
-Example files (safe to commit):
-- `apps/app/.env.example`
-- `apps/api/.env.example`
-- `apps/web/.env.example`
-
-> [!tip]
-> Turborepo tracks `**/.env.*local` as a global dependency (`turbo.json`). Any env file change invalidates all task caches.
+> - Secrets generated via `openssl rand -base64 32` during setup: AUTH_SECRET, BETTER_AUTH_SECRET, CRON_SECRET, MCP_ENCRYPTION_KEY
 
 ## Related
 
 - [[runbooks/local-dev-setup]] -- Setting up env vars for development
 - [[architecture/package-map]] -- Which packages use which env vars
-- [[api-contracts/webhook-contracts]] -- Webhook-specific env vars
