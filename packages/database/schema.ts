@@ -157,3 +157,42 @@ export const userCredit = pgTable("user_credit", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
+
+// ─── Agent Memory ──────────────────────────────────────────
+
+export const userPreference = pgTable("user_preference", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  key: varchar("key", { length: 100 }).notNull(),
+  value: text("value").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+export const healthBaseline = pgTable("health_baseline", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  metric: varchar("metric", { length: 50 }).notNull(),
+  mean: text("mean").notNull(),
+  stddev: text("stddev"),
+  sampleSize: integer("sample_size").notNull().default(0),
+  lastUpdated: timestamp("last_updated").notNull().defaultNow(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const conversationMemory = pgTable("conversation_memory", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: varchar("user_id", { length: 36 })
+    .notNull()
+    .references(() => user.id, { onDelete: "cascade" }),
+  chatId: uuid("chat_id").references(() => chat.id, { onDelete: "set null" }),
+  fact: text("fact").notNull(),
+  category: varchar("category", { length: 50 }).notNull(),
+  confidence: text("confidence"),
+  expiresAt: timestamp("expires_at"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
