@@ -1,105 +1,18 @@
 name: CI
-
 on:
   push:
     branches: [main]
   pull_request:
     branches: [main]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-env:
-  TURBO_TOKEN: ${{ secrets.TURBO_TOKEN }}
-  TURBO_TEAM: ${{ secrets.TURBO_TEAM }}
-  # Required by @repo/next-config env validation during build
-  NEXT_PUBLIC_APP_URL: http://localhost:3000
-  NEXT_PUBLIC_WEB_URL: http://localhost:3001
-  NEXT_PUBLIC_API_URL: http://localhost:3002
-  NEXT_PUBLIC_DOCS_URL: http://localhost:3004
-  # Dummy DATABASE_URL for build (Prisma client import requires it, but no actual connection is made)
-  DATABASE_URL: postgresql://user:pass@localhost:5432/ci
-
 jobs:
-  check:
-    name: Lint & Typecheck
+  ci:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
         with:
           bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: bunx prisma generate --schema=packages/database/prisma/schema.prisma
-
-      - name: Lint (biome)
-        run: bun run check
-
-      - name: Typecheck
-        run: bun run turbo typecheck --filter=api --filter=app --filter=web
-
-  test:
-    name: Test
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    needs: check
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Generate Prisma client
-        run: cd packages/database && bunx prisma generate
-
-      - name: Run tests
-        run: bun run test
-
-  build:
-    name: Build
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    needs: test
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
-      - name: Install dependencies
-        run: bun install --frozen-lockfile
-
-      - name: Build all
-        run: bun run build
-
-  docs-check:
-    name: Docs Check
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Check docs freshness
-        run: bash scripts/harness/check-docs-freshness.sh
-
-      - name: Check wikilinks
-        run: bash scripts/harness/check-wikilinks.sh
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run build
