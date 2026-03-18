@@ -1,12 +1,38 @@
-# .control/topology.yaml — Repository topology map for Symphony Cloud
+# .control/topology.yaml — Repository topology map for healthOS Platform
 # Describes all apps, packages, and their relationships.
 
 apps:
+  chat:
+    path: "apps/chat"
+    description: "AI-powered health chat agent — multi-provider, tRPC, MCP, branching"
+    port: 3010
+    risk: high
+    domain: health+ai
+    dependencies:
+      - "@repo/auth"
+      - "@repo/database"
+      - "@repo/ai"
+      - "@repo/design-system"
+      - "@repo/health-tools"
+
+  health:
+    path: "apps/health"
+    description: "Health intelligence dashboard — Garmin tools, biometric analysis"
+    port: 3011
+    risk: high
+    domain: health
+    dependencies:
+      - "@repo/auth"
+      - "@repo/database"
+      - "@repo/ai"
+      - "@repo/design-system"
+      - "@repo/health-tools"
+
   app:
     path: "apps/app"
-    description: "Main dashboard application (Next.js App Router)"
+    description: "Shell application (next-forge default, placeholder)"
     port: 3000
-    risk: high
+    risk: low
     domain: dashboard
     dependencies:
       - "@repo/auth"
@@ -113,7 +139,7 @@ packages:
 
   auth:
     path: "packages/auth"
-    description: "Authentication (Clerk)"
+    description: "Authentication (Better Auth — Google, GitHub, anonymous)"
     domain: auth
 
   cms:
@@ -128,7 +154,7 @@ packages:
 
   database:
     path: "packages/database"
-    description: "Prisma ORM + Neon PostgreSQL"
+    description: "Drizzle ORM + Neon PostgreSQL"
     domain: database
     risk: high
 
@@ -201,6 +227,12 @@ packages:
     path: "packages/symphony-client"
     description: "HTTP client for Symphony engine API (/api/v1/state, /readyz, etc.)"
     domain: api
+
+  health-tools:
+    path: "packages/health-tools"
+    description: "Garmin health tools — query, snapshot, sleep, training, vitals"
+    domain: health
+    risk: low
 
   webhooks:
     path: "packages/webhooks"
