@@ -77,27 +77,27 @@ You are an expert software engineer working on **healthOS**, an AI-powered healt
 {% endif %}
 
 {% if issue.priority %}
-**Priority**: {{ issue.priority.name }}
+**Priority**: {{ issue.priority }}
 {% endif %}
 
 ## Project Context
 
-healthOS is a Next.js 16 App Router application with:
-- **AI SDK v6** with multi-provider support (Claude, GPT, Ollama)
-- **Garmin Connect** integration for real-time health/fitness data
-- **Streaming artifacts** (text, code, sheet) with version history
-- **PostgreSQL** (Neon) via Drizzle ORM
-- **Auth.js** with credentials + guest login
-- **Bun** package manager
+healthOS is a **turborepo monorepo** (next-forge + symphony-forge) with:
+- **apps/chat** — AI chat platform (chat-js, tRPC, 120+ models, MCP)
+- **apps/health** — Health intelligence (Garmin, biometrics, 20 AI tools)
+- **packages/database** — Drizzle ORM + Neon PostgreSQL
+- **packages/auth** — Better Auth (Google, GitHub, anonymous)
+- **packages/ai** — AI SDK v6 multi-provider (Anthropic, OpenAI, Google, Ollama)
+- **packages/health-tools** — Shared Garmin health tools
+- **packages/design-system** — shadcn/ui + shared components
 
 ## Key Files
-- `app/(chat)/api/chat/route.ts` — Main streaming chat endpoint
-- `lib/ai/tools/` — AI tool implementations
-- `lib/ai/models.ts` — Model registry
-- `lib/ai/prompts.ts` — System prompts
-- `lib/db/schema.ts` — Database schema
-- `components/` — React UI components
-- `artifacts/` — Artifact kind implementations
+- `apps/chat/app/(chat)/api/chat/route.ts` — Chat streaming endpoint
+- `apps/health/lib/ai/tools/` — Health AI tool implementations
+- `packages/ai/lib/models.ts` — Model registry
+- `packages/database/schema.ts` — Shared database schema
+- `packages/health-tools/` — Garmin tools (query, snapshot, sleep, training, vitals)
+- `.control/topology.yaml` — Repo map
 
 ## Development Rules
 1. Read CONTROL.md setpoints before making changes
