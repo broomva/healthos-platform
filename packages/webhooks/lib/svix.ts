@@ -1,21 +1,20 @@
 import "server-only";
-import { auth } from "@repo/auth/server";
 import { Svix } from "svix";
 import { keys } from "../keys";
 
 const svixToken = keys().SVIX_TOKEN;
 
-export const send = async (eventType: string, payload: object) => {
+// Better Auth uses API routes; org context must be passed explicitly.
+export const send = (eventType: string, payload: object, orgId?: string) => {
   if (!svixToken) {
     throw new Error("SVIX_TOKEN is not set");
   }
 
-  const svix = new Svix(svixToken);
-  const { orgId } = await auth();
-
   if (!orgId) {
     return;
   }
+
+  const svix = new Svix(svixToken);
 
   return svix.message.create(orgId, {
     eventType,
@@ -30,17 +29,16 @@ export const send = async (eventType: string, payload: object) => {
   });
 };
 
-export const getAppPortal = async () => {
+export const getAppPortal = (orgId?: string) => {
   if (!svixToken) {
     throw new Error("SVIX_TOKEN is not set");
   }
 
-  const svix = new Svix(svixToken);
-  const { orgId } = await auth();
-
   if (!orgId) {
     return;
   }
+
+  const svix = new Svix(svixToken);
 
   return svix.authentication.appPortalAccess(orgId, {
     application: {

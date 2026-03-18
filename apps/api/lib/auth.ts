@@ -1,4 +1,3 @@
-import { auth } from "@repo/auth/server";
 import { NextResponse } from "next/server";
 
 export interface AuthContext {
@@ -7,39 +6,21 @@ export interface AuthContext {
 }
 
 /**
- * Authenticate a v1 API request using Clerk.
- * Returns the org/user context or a JSON error response.
+ * Authenticate a v1 API request.
+ * Better Auth uses API routes; this is a placeholder until
+ * session extraction from headers is wired up.
  */
-export async function authenticateRequest(): Promise<
-  { ok: true; ctx: AuthContext } | { ok: false; response: NextResponse }
-> {
-  const { orgId, userId } = await auth();
-
-  if (!userId) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        { message: "Not authenticated", code: "UNAUTHORIZED", status: 401 },
-        { status: 401 }
-      ),
-    };
-  }
-
-  if (!orgId) {
-    return {
-      ok: false,
-      response: NextResponse.json(
-        {
-          message: "No organization selected",
-          code: "NO_ORGANIZATION",
-          status: 403,
-        },
-        { status: 403 }
-      ),
-    };
-  }
-
-  return { ok: true, ctx: { orgId, userId } };
+export function authenticateRequest():
+  | { ok: true; ctx: AuthContext }
+  | { ok: false; response: NextResponse } {
+  // TODO: integrate with Better Auth session via headers
+  return {
+    ok: false,
+    response: NextResponse.json(
+      { message: "Not authenticated", code: "UNAUTHORIZED", status: 401 },
+      { status: 401 }
+    ),
+  };
 }
 
 /**
