@@ -3,15 +3,11 @@
 // The authMiddleware stub mimics Clerk's signature: callback(auth, request, event)
 // so proxy files that destructure (auth, request, event) work without Clerk.
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-type ProxyCallback = (
-  auth: Record<string, never>,
-  request: unknown,
-  event: unknown
-) => unknown;
+// biome-ignore lint/suspicious/noExplicitAny: proxy must accept Next.js types without importing next
+type AnyFn = (...args: any[]) => any;
 
 export const authMiddleware =
-  (callback: ProxyCallback) =>
+  (callback: AnyFn) =>
   // biome-ignore lint/suspicious/noExplicitAny: proxy must accept Next.js types without importing next
   (request: any, event: any) =>
     callback({}, request, event);
