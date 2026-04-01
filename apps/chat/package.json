@@ -65,7 +65,7 @@
     "@lexical/link": "^0.32.1",
     "@lexical/list": "^0.32.1",
     "@lexical/markdown": "^0.32.1",
-    "@lexical/react": "^0.32.1",
+    "@lexical/react": "^0.42.0",
     "@lexical/rich-text": "^0.32.1",
     "@mendable/firecrawl-js": "1.29.1",
     "@modelcontextprotocol/sdk": "^1.24.3",
